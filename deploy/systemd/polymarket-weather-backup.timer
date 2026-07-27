@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Polymarket Weather Arb SQLite backup
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+Persistent=true
+Unit=polymarket-weather-backup.service
+
+[Install]
+WantedBy=timers.target

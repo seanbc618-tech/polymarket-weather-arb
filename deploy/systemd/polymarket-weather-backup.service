@@ -1,0 +1,15 @@
+[Unit]
+Description=Back up Polymarket Weather Arb SQLite database
+
+[Service]
+Type=oneshot
+User=polymarket-weather
+Group=polymarket-weather
+WorkingDirectory=/opt/polymarket-weather-arb
+EnvironmentFile=/etc/polymarket-weather-arb.env
+ExecStart=/opt/polymarket-weather-arb/.venv/bin/polymarket-weather backup-db --output-dir /opt/polymarket-weather-arb/backups --retention 3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/polymarket-weather-arb/data /opt/polymarket-weather-arb/backups

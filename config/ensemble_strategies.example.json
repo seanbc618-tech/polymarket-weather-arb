@@ -1,0 +1,112 @@
+{
+  "description": "Ensemble Weather 策略配置",
+  "version": "1.0",
+  "last_updated": "2026-06-03",
+  "strategies": {
+    "conservative_ensemble": {
+      "name": "保守策略",
+      "description": "Ensemble 和 NOAA 一致才交易，更安全",
+      "risk_level": "低",
+      "expected_return": "中等",
+      "win_rate": "高",
+      "rules": {
+        "ensemble_required": true,
+        "noaa_required": true,
+        "agreement_threshold": 0.7,
+        "min_edge": 0.05,
+        "max_position_size": 5,
+        "description": "只有当 Ensemble 和 NOAA 都显示有 edge 时才交易"
+      },
+      "conditions": {
+        "ensemble_probability_above_threshold": 0.7,
+        "noaa_probability_above_threshold": 0.7,
+        "ensemble_noaa_agreement": true,
+        "description": "Ensemble 和 NOAA 都认为概率 > 70% 时才交易"
+      },
+      "example": {
+        "ensemble_prediction": "81.3°F, P(>80°F) = 0.90",
+        "noaa_prediction": "81°F, P(>80°F) = 0.80",
+        "action": "买 YES @ 0.80",
+        "reason": "两者一致，概率高，风险低"
+      },
+      "pros": [
+        "风险低",
+        "胜率高",
+        "稳定性好"
+      ],
+      "cons": [
+        "机会少",
+        "收益有限"
+      ]
+    },
+    "aggressive_ensemble": {
+      "name": "激进策略",
+      "description": "主要依赖 Ensemble 预测，搏更高收益",
+      "risk_level": "高",
+      "expected_return": "高",
+      "win_rate": "中等",
+      "rules": {
+        "ensemble_required": true,
+        "noaa_required": false,
+        "agreement_threshold": 0.6,
+        "min_edge": 0.10,
+        "max_position_size": 10,
+        "description": "主要依赖 Ensemble 预测，即使 NOAA 不一致也交易"
+      },
+      "conditions": {
+        "ensemble_probability_above_threshold": 0.8,
+        "noaa_probability_above_threshold": 0.3,
+        "ensemble_noaa_agreement": false,
+        "description": "Ensemble 认为概率 > 80%，即使 NOAA 认为概率 < 30% 也交易"
+      },
+      "example": {
+        "ensemble_prediction": "81.3°F, P(>80°F) = 0.90",
+        "noaa_prediction": "76°F, P(>80°F) = 0.10",
+        "action": "买 YES @ 0.10",
+        "reason": "Ensemble 更准确，搏高收益"
+      },
+      "pros": [
+        "机会多",
+        "收益高",
+        "利用 Ensemble 准确性"
+      ],
+      "cons": [
+        "风险高",
+        "可能亏钱",
+        "需要更多资金"
+      ]
+    }
+  },
+  "usage_guidelines": {
+    "conservative_ensemble": {
+      "适合人群": "风险厌恶型投资者",
+      "资金要求": "低",
+      "经验要求": "初学者",
+      "建议仓位": "每次 1-5 USDC",
+      "止损": "不需要",
+      "持有时间": "短期"
+    },
+    "aggressive_ensemble": {
+      "适合人群": "风险偏好型投资者",
+      "资金要求": "高",
+      "经验要求": "有经验",
+      "建议仓位": "每次 5-10 USDC",
+      "止损": "需要",
+      "持有时间": "短期"
+    }
+  },
+  "risk_management": {
+    "position_sizing": {
+      "conservative": "总资金的 1-2%",
+      "aggressive": "总资金的 3-5%"
+    },
+    "diversification": {
+      "conservative": "分散到 3-5 个市场",
+      "aggressive": "分散到 5-10 个市场"
+    },
+    "stop_loss": {
+      "conservative": "不需要",
+      "aggressive": "设置 10-20% 止损"
+    }
+  }
+}

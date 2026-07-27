@@ -1,0 +1,22 @@
+[Unit]
+Description=Polymarket Weather Arb operator daemon
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=polymarket-weather
+Group=polymarket-weather
+WorkingDirectory=/opt/polymarket-weather-arb
+EnvironmentFile=/etc/polymarket-weather-arb.env
+ExecStart=/opt/polymarket-weather-arb/.venv/bin/polymarket-weather operator daemon --profile dry-run-demo --tick-seconds 300 --dry-run-only
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/polymarket-weather-arb/data /opt/polymarket-weather-arb/backups
+
+[Install]
+WantedBy=multi-user.target

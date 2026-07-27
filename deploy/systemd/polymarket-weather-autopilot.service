@@ -1,0 +1,22 @@
+[Unit]
+Description=Polymarket Weather Arb autopilot (scan, LLM advise, trade)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=polymarket-weather
+Group=polymarket-weather
+WorkingDirectory=/opt/polymarket-weather-arb
+EnvironmentFile=/etc/polymarket-weather-arb.env
+ExecStart=/opt/polymarket-weather-arb/.venv/bin/polymarket-weather autopilot start --host 127.0.0.1 --port 8765 --full-auto
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/polymarket-weather-arb/data /opt/polymarket-weather-arb/backups
+
+[Install]
+WantedBy=multi-user.target

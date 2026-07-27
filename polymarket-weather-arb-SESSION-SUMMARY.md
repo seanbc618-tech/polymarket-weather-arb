@@ -1,0 +1,299 @@
+# 项目当前状态总结
+
+- 项目目标：
+  - 将 `polymarket-weather-arb` 从 CLI 优先的 Polymarket 天气研究/交易工具，升级为本地 operator console。
+  - 让常用工作流尽量都能在 Web UI 中完成：市场扫描、候选市场筛选、市场详情查看、规则解析、天气刷新、分析、模拟交易、风险查看、对账、配置检查、fixture 加载、operator 单次 tick。
+  - 保持真实交易强保护：浏览器端不允许直接 live 下单；live 交易仍由 CLI/daemon 经过 profile、白名单、对账、风控、策略 override、最终交易风控等多层 gate 控制。
+  - 扩展出模块化市场架构，当前已有通用 `weather` 模块和新加的 `china_temp_bucket` 模块，后续可继续接入更多非天气或特殊市场模块。
+  - 重点推进中国城市温度桶策略：针对 Polymarket 中国城市最高温 Celsius bucket 市场，发现低 ask 的 `buy_yes` 候选，结合官方/准官方天气信号进行分析和小额 dry-run/live 测试。
+
+- 已完成的主要功能/模块：
+  - Web UI/operator console：
+    - 已有 bilingual UI，中英文切换可用。
+    - 已有页面/入口包括：Discovery、Candidates、Markets、Market Detail、Orders、Risk、Reconciliation、Profiles、Setup、Doctor、Fixtures、Operator、Actions、Runs、Open Orders、Positions、Fills、Overrides。
+    - Discovery 页面支持模块选择，包含 `weather` 和 `china_temp_bucket`。
+    - Discovery 页面已增加扫描可视 modal/状态提示，避免用户点击后像黑盒一样等待。
+    - Discovery 空结果不再误报成功，现会显示 `flash.discovery_empty`，中文提示为“扫描没有找到可操作市场”。
+    - Candidates/Markets 支持模块过滤，如 `module=china_temp_bucket`。
+    - China bucket 候选和市场页会展示 city、bucket、target date 等元数据。
+    - Market detail 页面已支持安全操作按钮：inspect、refresh weather、analyze、dry-run。
+    - Browser dry-run 强制 server-side `dry_run=True`，忽略/拒绝任何尝试变成 live 的参数。
+    - Browser action approve/run 只允许非 live action：`dry_run`、`refresh_weather`、`analyze`。
+    - Browser 端不会直接调用 `trade_live`。
+  - 模块注册体系：
+    - 新增 module registry 基础结构。
+    - 已注册 `weather` 模块。
+    - 已注册 `china_temp_bucket` 模块。
+    - 已支持 module alias 路由，例如 `/modules/china_temp_bucket/markets`。
+  - China temperature bucket 模块：
+    - 新增 `ChinaTemperatureBucketRule` 规则模型。
+    - 支持解析 Qingdao/Chengdu/Shanghai/Wuhan 四个城市。
+    - 支持英文和中文城市名：青岛、成都、上海、武汉。
+    - 支持站点映射：Qingdao/ZSQD、Chengdu/ZUUU、Shanghai/ZSPD、Wuhan/ZHHH。
+    - 支持 Wunderground、CMA、中国气象局、NMC、中央气象台、weather.com.cn、中国天气网等 settlement/source 文案识别。
+    - 严格要求 `temperature_high`/最高温/高温，不接受最低温或模糊 temperature。
+    - 严格要求 Celsius 1°C bucket。
+    - 支持英文日期、slug 日期和中文日期格式。
+    - 对 unsupported city、Fahrenheit、bucket 过宽、低温、模糊变量、非官方 source、缺日期等情况有 rejection reason。
+  - China bucket discovery：
+    - 新增 `ChinaTemperatureBucketDiscoveryService`。
+    - 默认 `max_ask=0.10`，只收低 ask 候选。
+    - 默认不收 unsupported 或缺 order book 的市场。
+    - `include_unsupported=True` 时可以保留为 `needs_review`，并在 notes 中记录失败原因。
+    - 已从盲扫 Gamma `/markets` 改为优先使用 Gamma event slug endpoint：`/events/slug/{slug}`。
+    - 默认扫描日期范围为 UTC 当前日前后短窗口，用 event slug 构造：`highest-temperature-in-{city}-on-{month}-{day}-{year}`。
+    - 若 event slug 没找到候选，才 fallback 到 `list_markets` 分页。
+    - 已避免老/过期 bucket 市场因为没有 CLOB book 被错误标记为 `dry_run_ready`。
+    - 真实临时 DB smoke 曾扫出默认 `max_ask=0.10` 下 61 个 China candidates，说明 event-slug discovery 已能找到真实候选。
+  - China pricing/analyze 逻辑：
+    - 新增 `china_bucket_pricing.py`。
+    - 使用 normal distribution/forecast interval 估算 bucket probability interval。
+    - 默认策略为低 ask `buy_yes`。
+    - `ChinaBucketPricingConfig` 包含 `min_edge`、`slippage_buffer`、`max_auto_ask`。
+    - ask 缺失、ask 高于 cap、非 Celsius/unsupported variable 会 reject。
+    - 当 conservative lower fair probability 减去 ask 和 slippage buffer 后仍超过 min_edge，才给 `decision='trade'`、`side='buy_yes'`。
+  - China weather provider 抽象：
+    - 新增 `ChinaOfficialWeatherProvider`。
+    - 目前不硬编码假 URL。
+    - 需要按 city 配置或注入 source URL/fetcher。
+    - 如果 source URL 缺失会抛错，避免用虚假数据误分析。
+  - Market workflow service：
+    - 新增/扩展 `MarketWorkflowService`，统一封装 inspect、refresh_weather、analyze、research_market、dry_run_trade。
+    - 会根据 `market.module_id` 路由：普通 `weather` 用原 OpenMeteo/NOAA-style workflow，`china_temp_bucket` 用 China bucket rule/provider/pricing。
+    - China analyze 会读取最新 order book snapshot、刷新 China forecast、调用 China bucket pricing、保存 analysis。
+    - China dry-run 会用 China bucket rule 作为 risk context 创建 order intent。
+  - CLI 集成：
+    - `inspect-market`、`refresh-weather`、`analyze`、`trade --dry-run` 已改为走 `MarketWorkflowService`。
+    - `trade --dry-run` 支持 module-aware workflow，China bucket 可以走 workflow dry-run。
+    - CLI live trade 仍然保守：当前非 `weather` 模块不允许直接 live trade。
+  - Automation queue 集成：
+    - `AutomationService` 已改为非 live action 不再 shell 到 CLI，而是进程内调用 `MarketWorkflowService`。
+    - `refresh_weather`、`analyze`、`dry_run` 由 workflow 执行。
+    - `dry_run` 若缺 analysis，会先执行 `research_market`，再 dry-run。
+    - `trade_live` 仍走 CLI/subprocess，保持 live gate。
+    - 非 live workflow 执行前会 commit 当前 transaction，避免长事务包住外部 workflow。
+  - Operator daemon 集成：
+    - Daemon 创建 `AutomationService` 时注入 profile settings 和共享 Polymarket client。
+    - Daemon dry-run queue 走内部 workflow，不再错误使用默认 `GammaPolymarketClient`。
+    - Daemon live auto 仍依赖多重 gate。
+  - SQLite schema/repository：
+    - `markets` 增加 `module_id`。
+    - `market_candidates` 增加 `module_id`。
+    - 新增 `temperature_bucket_rules` 表。
+    - Repository 新增 bucket rule 保存/读取/list 方法。
+    - Repository candidate/market listing 支持 module filter。
+    - Candidate listing join bucket metadata，便于 UI 展示。
+  - 测试：
+    - 已增加 China parser、China pricing、China discovery、Market workflow、CLI/operator China path、Dashboard market workflow 等测试。
+    - 最近完整测试通过：`120 passed`。
+
+- 正在进行中的任务（带优先级）：
+  - P0：处理 Polymarket 正式账号/live 准备问题。
+    - 用户网页端下单时遇到 Polymarket 提示：`This account is disabled. Withdraw your funds, create a new Polymarket account, and move them over.`
+    - 这是 Polymarket 账号被禁用，不是本项目代码或参数错误。
+    - 当前账号不要接入 live 配置；需要先提现、新建合规账号、小额转入并确认网页端可正常下单。
+  - P0：保持 live 安全边界。
+    - 不能在浏览器端直接 live 下单。
+    - 不要把 private key 粘贴到聊天里。
+    - 只允许用户本地 `.env` 配置 live 所需 secret。
+    - 新账号接入前先跑 `doctor --live` 和 `reconcile`。
+  - P1：完成 China official weather source 配置/实现。
+    - 当前 China discovery 已能找到真实 bucket markets。
+    - 但 China analyze/dry-run 仍可能被 `ChinaOfficialWeatherProvider` 的 source URL 缺失阻塞。
+    - 需要确定真实可用数据源或实现明确的手动/官方信号接入方式。
+  - P1：重新进行手动 UI smoke。
+    - 用真实 dashboard 跑 China module discovery。
+    - 从 candidates 进入 China market detail。
+    - 验证 inspect、analyze、dry-run 的实际体验。
+    - 如果 analyze 因 source URL 缺失失败，需要在 UI 中给清晰提示。
+  - P1：确认真实账号 `.env` 配置流程。
+    - 需要用户在本地配置：`POLYMARKET_PRIVATE_KEY`、`POLYMARKET_FUNDER`、`POLYMARKET_SIGNATURE_TYPE`、`POLYMARKET_CHAIN_ID=137`。
+    - 同时设置小额风险上限：`MAX_ORDER_USDC=1`、`MAX_DAILY_USDC=3`、`MAX_MARKET_USDC=1`。
+  - P2：把当前大改动整理成清晰 commit。
+    - 当前改动范围较大，包含 UI、module、schema、workflow、CLI、automation、tests。
+    - 可以考虑一个大 commit，或拆成：schema/module、China discovery/pricing、workflow/CLI/automation、dashboard/tests。
+  - P2：UI 易用性继续打磨。
+    - 让错误提示更短、更不容易飞出屏幕。
+    - 对 China analyze source 缺失提供下一步指引。
+    - Candidate/Market detail 页面增加更明确的“可分析/不可分析原因”。
+  - P3：后续更多模块预留。
+    - 目前 module registry 只是轻量 seam。
+    - 未来接 sports/politics/crypto/其他特殊套利市场时，需要让每个 module 自己提供 discovery、rule parser、analysis、candidate metadata、dry-run adapter。
+
+- 关键文件和架构决策：
+  - `src/polymarket_weather_arb/dashboard.py`
+    - 当前仍是 stdlib dashboard 主文件。
+    - 负责 GET/POST routing、bilingual UI、flash、safe action controls、module filters、operator pages。
+    - 重要决策：浏览器端只允许运行 non-live action，不直接运行 `trade_live`。
+  - `src/polymarket_weather_arb/modules/base.py`
+    - 定义 `MarketModule`。
+  - `src/polymarket_weather_arb/modules/weather.py`
+    - 注册默认 weather module。
+  - `src/polymarket_weather_arb/modules/china_temp_bucket.py`
+    - 注册 China temperature bucket module。
+  - `src/polymarket_weather_arb/modules/registry.py`
+    - 统一 module registry。
+  - `src/polymarket_weather_arb/domain/china_temperature_bucket.py`
+    - China bucket rule parser。
+    - 决策：只接受四个目标城市和高温 Celsius 1°C bucket，宁可少收也不误收。
+  - `src/polymarket_weather_arb/domain/china_bucket_pricing.py`
+    - China bucket pricing/analyze 逻辑。
+    - 决策：低 ask `buy_yes`，用 conservative lower fair probability 做边际判断。
+  - `src/polymarket_weather_arb/adapters/weather/china_official.py`
+    - China 官方/准官方天气 provider 抽象。
+    - 决策：不硬编码假 URL；缺 source 直接报错。
+  - `src/polymarket_weather_arb/services/china_bucket_discovery_service.py`
+    - China bucket discovery。
+    - 决策：优先走 Gamma event slug discovery，而不是 `/markets` 盲扫。
+    - 决策：默认跳过缺 order book 或 ask 高于 cap 的 bucket 市场。
+  - `src/polymarket_weather_arb/adapters/polymarket/client.py`
+    - `GammaPolymarketClient`。
+    - 新增 `get_event_markets_by_slug()`。
+    - live 下单依赖 `py-clob-client` 和 `_authenticated_clob_client()`。
+  - `src/polymarket_weather_arb/services/market_workflow_service.py`
+    - module-aware workflow 中心。
+    - 决策：CLI、dashboard、automation queue 都尽量复用这个 service，避免三处逻辑分叉。
+  - `src/polymarket_weather_arb/services/automation_service.py`
+    - Automation queue lifecycle。
+    - 决策：non-live action 进程内执行 workflow；`trade_live` 仍 shell 到 CLI 保持 live gate。
+  - `src/polymarket_weather_arb/services/operator_daemon.py`
+    - Operator daemon。
+    - 决策：daemon dry-run 走 workflow；live auto 保持强 gate。
+  - `src/polymarket_weather_arb/cli.py`
+    - Typer CLI。
+    - 决策：module-sensitive inspect/refresh/analyze/dry-run 走 workflow；直接 live trade 当前只允许 weather module。
+  - `src/polymarket_weather_arb/storage/db.py`
+    - SQLite schema/migrations。
+    - 新增 `module_id` 和 `temperature_bucket_rules`。
+  - `src/polymarket_weather_arb/storage/repositories.py`
+    - Repository read/write 层。
+    - 负责 module-aware candidate/market list、bucket rule CRUD、market snapshot、forecast、analysis、order intents、actions 等。
+  - `tests/test_china_temperature_bucket.py`
+    - China parser regression tests。
+  - `tests/test_china_bucket_pricing.py`
+    - China provider/pricing tests。
+  - `tests/test_china_bucket_discovery_service.py`
+    - China discovery tests，覆盖 event slug、missing order book、high ask filter。
+  - `tests/test_market_workflow_service.py`
+    - China workflow tests。
+  - `tests/test_cli_operator.py`
+    - CLI/operator China dry-run tests。
+  - `tests/test_dashboard_market_workflow.py`
+    - Dashboard route/workflow/module UI tests。
+  - `tests/test_automation_service.py`
+    - Automation service workflow execution tests。
+  - `tests/test_operator_daemon.py`
+    - Daemon dry-run/live gate tests。
+
+- 下一步具体计划（越详细越好）：
+  - 1. 先处理账号/live 接入前置条件。
+    - 当前 Polymarket 网页提示账号 disabled。
+    - 不要用这个账号配置本项目 live。
+    - 用户应先在 Polymarket 网页端提现。
+    - 新建一个正常账号。
+    - 只转小额 USDC 到新账号。
+    - 在网页端确认该账号能打开下单面板且不再报 disabled。
+    - 再开始本地 `.env` 配置。
+  - 2. 本地 `.env` live 最小配置。
+    - 文件位置通常是项目根目录 `.env`。
+    - 必要字段：
+      - `POLYMARKET_PRIVATE_KEY=0x...`
+      - `POLYMARKET_FUNDER=0x...`
+      - `POLYMARKET_SIGNATURE_TYPE=...`
+      - `POLYMARKET_CHAIN_ID=137`
+    - 小额风控字段建议：
+      - `MAX_ORDER_USDC=1`
+      - `MAX_DAILY_USDC=3`
+      - `MAX_MARKET_USDC=1`
+    - 不要把 private key、seed phrase、完整 secret 发到聊天。
+  - 3. 配置后执行 live readiness 检查。
+    - 命令：
+      - `uv --directory /path/to/polymarket-weather-arb run polymarket-weather doctor --live`
+      - `uv --directory /path/to/polymarket-weather-arb run polymarket-weather reconcile`
+    - 目标：
+      - 确认 `py-clob-client` 可用。
+      - 确认 private key/funder/signature type 被识别。
+      - 确认账户余额、open orders、positions 能读取。
+      - 确认 reconciliation 状态不是 adapter-error。
+  - 4. 继续修 China analyze 数据源。
+    - 读取当前 `ChinaOfficialWeatherProvider` 的配置入口。
+    - 明确每个城市的数据源接入策略。
+    - 优先方案：使用可公开访问、稳定、接近 settlement 的官方/准官方 JSON/API。
+    - 如果没有稳定 API，短期方案可以做“手动 forecast signal 输入”或 fixture/provider 注入，供 UI/CLI dry-run 测试，不伪装成自动官方数据。
+    - UI 上要显示 forecast provider/source，让用户知道分析依据。
+  - 5. 跑自动测试。
+    - 命令：
+      - `uv --directory /path/to/polymarket-weather-arb run --extra dev pytest -q tests`
+    - 如果只改 China provider，可先跑：
+      - `uv --directory /path/to/polymarket-weather-arb run --extra dev pytest -q tests/test_china_bucket_pricing.py tests/test_market_workflow_service.py tests/test_dashboard_market_workflow.py`
+  - 6. 手动 UI smoke。
+    - 启动 dashboard：
+      - `uv --directory /path/to/polymarket-weather-arb run polymarket-weather dashboard --host 127.0.0.1 --port 8765`
+    - 打开：`http://127.0.0.1:8765/?lang=zh`
+    - 进入 Discovery。
+    - 选择 `中国温度桶` / `china_temp_bucket`。
+    - 使用默认或小范围参数扫描。
+    - 确认扫描结果不是空，或空时提示合理。
+    - 进入 Candidates，筛选 `china_temp_bucket`。
+    - 打开一个低 ask 的 China market detail。
+    - 点击 Inspect。
+    - 点击 Analyze。
+    - 如果 Analyze 失败，确认错误是否明确指向 China weather source 未配置。
+    - 若 Analyze 成功，再点击 Dry Run。
+    - 打开 Orders，确认生成 dry-run order intent。
+    - 确认 UI 中没有 live 下单按钮。
+  - 7. 小额 live 前的最终安全流程。
+    - 仅在新账号正常、doctor/reconcile/risk 全部 ok 后考虑。
+    - 先 whitelist 单个 market。
+    - 设置 strategy override：`live_auto_enabled=True` 只针对单市场。
+    - 使用 `micro-live` profile。
+    - 单笔不超过 1 USDC。
+    - 不从浏览器直接 live。
+    - 先用 CLI 明确执行一次受控 live trade，观察结果。
+  - 8. 整理 commit。
+    - 查看 `git status` 和 diff。
+    - 确认没有 `.env`、secret、临时 DB、大文件进入 commit。
+    - 建议 commit 拆分：
+      - schema/module registry/China rule model。
+      - China discovery/pricing/provider。
+      - workflow/CLI/automation/daemon integration。
+      - dashboard UI/tests。
+    - 如果当前变更太交织，也可以先做一个大 commit，message 清楚说明 operator console + China bucket module。
+  - 9. 后续架构重构。
+    - 当前 `dashboard.py` 仍较大。
+    - 后续可拆成：`dashboard_i18n.py`、`dashboard_render.py`、`dashboard_pages.py`、`dashboard_actions.py`。
+    - 拆分前必须保证现有 route-level tests 全通过。
+    - 不要在拆 dashboard 的同时引入新功能，降低回归风险。
+
+- 已知问题或待优化点：
+  - Polymarket 当前账号被 disabled。
+    - 网页端明确提示需要提现、新建账号、转移资金。
+    - 这不是代码问题，不能通过 API 或程序绕过。
+  - China analyze 真实数据源仍未完成。
+    - Discovery 可以找到真实 China bucket markets。
+    - 但 analyze/dry-run 依赖 `ChinaOfficialWeatherProvider`，当前默认没有真实 source URL。
+    - 需要接入可靠数据源或明确的手动信号输入。
+  - China bucket 默认日期窗口使用 UTC 当前日。
+    - 用户之前希望上海/UTC+8 体验更自然。
+    - Discovery/event date 默认范围可能需要改为 Asia/Shanghai local date，至少 UI 显示要清楚。
+  - UI 错误提示仍可能过长。
+    - 之前有错误飞出屏幕的问题。
+    - 需要继续限制 flash/error box 宽度和换行。
+  - `dashboard.py` 文件较大。
+    - 当前为了快速交付功能仍集中在一个文件。
+    - 后续应拆分，但不要影响现有行为。
+  - Live trading 对非 weather module 当前仍未开放。
+    - CLI live trade 对 `china_temp_bucket` 当前会拒绝。
+    - 这是有意保守决策。
+    - 若未来要 China live，需要专门加 gate、测试、profile、risk context、manual confirmation。
+  - China official weather settlement 与 Polymarket 具体规则可能有差异。
+    - 不同 bucket event 可能使用 Wunderground 或其他 source。
+    - Parser 能识别 source，但 provider 是否与 settlement 完全一致需要逐市场确认。
+  - Candidate 的 `dry_run_ready` 代表 order book/rule 层面可进入下一步，不代表 forecast/analyze 一定成功。
+    - 对 China module 尤其如此，因为 forecast source 尚待配置。
+    - UI 应增加“market data ready”和“forecast source configured”的区分。
+  - 当前测试覆盖较好，但真实网络/API 行为仍需手动 smoke。
+    - 自动测试主要使用 fake client/provider。
+    - Polymarket Gamma/CLOB 响应结构或 endpoint 行为变更仍可能影响 discovery。
+  - 需要避免误把 disabled account 的问题归因到程序。
+    - 任何 live 下单失败前都先确认账号状态、余额、funder/proxy wallet、signature type、KYC/region/account restriction。

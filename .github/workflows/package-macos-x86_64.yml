@@ -1,0 +1,48 @@
+name: Package macOS x86_64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-intel:
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - name: Verify Architecture
+        run: |
+          ARCH=$(uname -m)
+          if [ "$ARCH" != "x86_64" ]; then
+            echo "Expected x86_64, but got $ARCH"
+            exit 1
+          fi
+          echo "Architecture is $ARCH"
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Build macOS App
+        run: ./scripts/build_macos_app.sh
+        env:
+          APP_VERSION: 0.1.4
+
+      - name: Smoke Test Packaged App
+        run: ./scripts/smoke_packaged_app.sh
+        env:
+          TRADING_DISABLED: true
+          # Don't try to send telegram messages during smoke test
+          TELEGRAM_BOT_TOKEN: ""
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: polymarket-weather-macos-x86_64
+          path: |
+            dist/*.dmg
+            dist/*.sha256

@@ -1,0 +1,297 @@
+{
+  "description": "Polymarket 市场城市 -> NOAA 观测站映射",
+  "version": "1.0",
+  "last_updated": "2026-07-17",
+  "station_timezones": {
+    "KLGA": "America/New_York",
+    "KORD": "America/Chicago",
+    "ZSPD": "Asia/Shanghai",
+    "ZUUU": "Asia/Shanghai",
+    "RKSI": "Asia/Seoul",
+    "EGLC": "Europe/London"
+  },
+  "mappings": {
+    "new_york": {
+      "city": "New York",
+      "aliases": ["NYC", "New York City", "Manhattan"],
+      "noaa_station": "KNYC",
+      "station_name": "New York City, Central Park",
+      "coordinates": {
+        "latitude": 40.7833,
+        "longitude": -73.9667
+      },
+      "noaa_gridpoint": "OKX/33,42",
+      "timezone": "America/New_York",
+      "notes": "Central Park 观测站，最接近纽约市中心"
+    },
+    "KNYC": {
+      "city": "New York",
+      "aliases": ["NYC", "New York City", "Manhattan"],
+      "noaa_station": "KNYC",
+      "station_name": "New York City, Central Park",
+      "coordinates": {
+        "latitude": 40.7833,
+        "longitude": -73.9667
+      },
+      "noaa_gridpoint": "OKX/33,42",
+      "timezone": "America/New_York",
+      "notes": "Central Park 观测站，最接近纽约市中心"
+    },
+    "los_angeles": {
+      "city": "Los Angeles",
+      "aliases": ["LA", "L.A."],
+      "noaa_station": "KLAX",
+      "station_name": "Los Angeles International Airport",
+      "coordinates": {
+        "latitude": 33.9425,
+        "longitude": -118.4081
+      },
+      "noaa_gridpoint": "LOX/149,47",
+      "timezone": "America/Los_Angeles",
+      "notes": "LAX 观测站"
+    },
+    "KLAX": {
+      "city": "Los Angeles",
+      "aliases": ["LA", "L.A."],
+      "noaa_station": "KLAX",
+      "station_name": "Los Angeles International Airport",
+      "coordinates": {
+        "latitude": 33.9425,
+        "longitude": -118.4081
+      },
+      "noaa_gridpoint": "LOX/149,47",
+      "timezone": "America/Los_Angeles",
+      "notes": "LAX 观测站"
+    },
+    "chicago": {
+      "city": "Chicago",
+      "aliases": ["Chi-town"],
+      "noaa_station": "KORD",
+      "station_name": "Chicago O'Hare International Airport",
+      "coordinates": {
+        "latitude": 41.9742,
+        "longitude": -87.9073
+      },
+      "noaa_gridpoint": "LOT/76,73",
+      "timezone": "America/Chicago",
+      "notes": "O'Hare 观测站"
+    },
+    "KORD": {
+      "city": "Chicago",
+      "aliases": ["Chi-town"],
+      "noaa_station": "KORD",
+      "station_name": "Chicago O'Hare International Airport",
+      "coordinates": {
+        "latitude": 41.9742,
+        "longitude": -87.9073
+      },
+      "noaa_gridpoint": "LOT/76,73",
+      "timezone": "America/Chicago",
+      "notes": "O'Hare 观测站"
+    },
+    "miami": {
+      "city": "Miami",
+      "aliases": ["South Beach"],
+      "noaa_station": "KMIA",
+      "station_name": "Miami International Airport",
+      "coordinates": {
+        "latitude": 25.7959,
+        "longitude": -80.2870
+      },
+      "noaa_gridpoint": "MFL/110,50",
+      "timezone": "America/New_York",
+      "notes": "Miami 观测站"
+    },
+    "KMIA": {
+      "city": "Miami",
+      "aliases": ["South Beach"],
+      "noaa_station": "KMIA",
+      "station_name": "Miami International Airport",
+      "coordinates": {
+        "latitude": 25.7959,
+        "longitude": -80.2870
+      },
+      "noaa_gridpoint": "MFL/110,50",
+      "timezone": "America/New_York",
+      "notes": "Miami 观测站"
+    },
+    "san_francisco": {
+      "city": "San Francisco",
+      "aliases": ["SF", "San Fran"],
+      "noaa_station": "KSFO",
+      "station_name": "San Francisco International Airport",
+      "coordinates": {
+        "latitude": 37.6213,
+        "longitude": -122.3790
+      },
+      "noaa_gridpoint": "MTR/85,105",
+      "timezone": "America/Los_Angeles",
+      "notes": "SFO 观测站"
+    },
+    "KSFO": {
+      "city": "San Francisco",
+      "aliases": ["SF", "San Fran"],
+      "noaa_station": "KSFO",
+      "station_name": "San Francisco International Airport",
+      "coordinates": {
+        "latitude": 37.6213,
+        "longitude": -122.3790
+      },
+      "noaa_gridpoint": "MTR/85,105",
+      "timezone": "America/Los_Angeles",
+      "notes": "SFO 观测站"
+    },
+    "seattle": {
+      "city": "Seattle",
+      "aliases": ["Emerald City"],
+      "noaa_station": "KBFI",
+      "station_name": "Boeing Field - King County International Airport",
+      "coordinates": {
+        "latitude": 47.5455,
+        "longitude": -122.3147
+      },
+      "noaa_gridpoint": "SEW/125,68",
+      "timezone": "America/Los_Angeles",
+      "notes": "Boeing Field 观测站，更接近 Seattle 市中心"
+    },
+    "KSEA": {
+      "city": "Seattle",
+      "aliases": ["Emerald City"],
+      "noaa_station": "KSEA",
+      "station_name": "Seattle-Tacoma International Airport",
+      "coordinates": {
+        "latitude": 47.4502,
+        "longitude": -122.3088
+      },
+      "noaa_gridpoint": "SEW/122,68",
+      "timezone": "America/Los_Angeles",
+      "notes": "SeaTac 观测站，在 Seattle 南部"
+    },
+    "KBFI": {
+      "city": "Seattle",
+      "aliases": ["Emerald City"],
+      "noaa_station": "KBFI",
+      "station_name": "Boeing Field - King County International Airport",
+      "coordinates": {
+        "latitude": 47.5455,
+        "longitude": -122.3147
+      },
+      "noaa_gridpoint": "SEW/125,68",
+      "timezone": "America/Los_Angeles",
+      "notes": "Boeing Field 观测站，更接近 Seattle 市中心"
+    },
+    "boston": {
+      "city": "Boston",
+      "aliases": ["Beantown"],
+      "noaa_station": "KBOS",
+      "station_name": "Boston Logan International Airport",
+      "coordinates": {
+        "latitude": 42.3656,
+        "longitude": -71.0096
+      },
+      "noaa_gridpoint": "BOX/71,76",
+      "timezone": "America/New_York",
+      "notes": "Logan 观测站"
+    },
+    "KBOS": {
+      "city": "Boston",
+      "aliases": ["Beantown"],
+      "noaa_station": "KBOS",
+      "station_name": "Boston Logan International Airport",
+      "coordinates": {
+        "latitude": 42.3656,
+        "longitude": -71.0096
+      },
+      "noaa_gridpoint": "BOX/71,76",
+      "timezone": "America/New_York",
+      "notes": "Logan 观测站"
+    },
+    "washington_dc": {
+      "city": "Washington DC",
+      "aliases": ["DC", "Washington", "D.C."],
+      "noaa_station": "KDCA",
+      "station_name": "Washington Reagan National Airport",
+      "coordinates": {
+        "latitude": 38.8512,
+        "longitude": -77.0402
+      },
+      "noaa_gridpoint": "LWX/97,71",
+      "timezone": "America/New_York",
+      "notes": "Reagan 观测站"
+    },
+    "KDCA": {
+      "city": "Washington DC",
+      "aliases": ["DC", "Washington", "D.C."],
+      "noaa_station": "KDCA",
+      "station_name": "Washington Reagan National Airport",
+      "coordinates": {
+        "latitude": 38.8512,
+        "longitude": -77.0402
+      },
+      "noaa_gridpoint": "LWX/97,71",
+      "timezone": "America/New_York",
+      "notes": "Reagan 观测站"
+    },
+    "denver": {
+      "city": "Denver",
+      "aliases": ["Mile High City"],
+      "noaa_station": "KDEN",
+      "station_name": "Denver International Airport",
+      "coordinates": {
+        "latitude": 39.8561,
+        "longitude": -104.6737
+      },
+      "noaa_gridpoint": "BOU/64,62",
+      "timezone": "America/Denver",
+      "notes": "DIA 观测站"
+    },
+    "KDEN": {
+      "city": "Denver",
+      "aliases": ["Mile High City"],
+      "noaa_station": "KDEN",
+      "station_name": "Denver International Airport",
+      "coordinates": {
+        "latitude": 39.8561,
+        "longitude": -104.6737
+      },
+      "noaa_gridpoint": "BOU/64,62",
+      "timezone": "America/Denver",
+      "notes": "DIA 观测站"
+    },
+    "phoenix": {
+      "city": "Phoenix",
+      "aliases": ["Valley of the Sun"],
+      "noaa_station": "KPHX",
+      "station_name": "Phoenix Sky Harbor International Airport",
+      "coordinates": {
+        "latitude": 33.4373,
+        "longitude": -112.0078
+      },
+      "noaa_gridpoint": "PSR/155,57",
+      "timezone": "America/Phoenix",
+      "notes": "Sky Harbor 观测站"
+    },
+    "KPHX": {
+      "city": "Phoenix",
+      "aliases": ["Valley of the Sun"],
+      "noaa_station": "KPHX",
+      "station_name": "Phoenix Sky Harbor International Airport",
+      "coordinates": {
+        "latitude": 33.4373,
+        "longitude": -112.0078
+      },
+      "noaa_gridpoint": "PSR/155,57",
+      "timezone": "America/Phoenix",
+      "notes": "Sky Harbor 观测站"
+    }
+  },
+  "usage_notes": {
+    "1": "从市场标题中提取城市名称",
+    "2": "使用 aliases 进行模糊匹配",
+    "3": "使用 noaa_gridpoint 获取预报数据",
+    "4": "使用 noaa_station 获取实时观测数据",
+    "5": "坐标用于 Open-Meteo 等其他数据源",
+    "6": "timezone 为 IANA 时区名称，用于将本地日转换为 UTC 查询窗口",
+    "7": "station_timezones 为 AWC 全球 ICAO 站点提供独立时区，不代表 NOAA gridpoint"
+  }
+}

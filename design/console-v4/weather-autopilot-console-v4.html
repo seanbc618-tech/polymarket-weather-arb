@@ -1,0 +1,2855 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weather Autopilot · 交易控制台 v4</title>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <style>
+    /* ========== Design Tokens ========== */
+    :root {
+      --bg: oklch(96.8% 0.006 250);
+      --bg-elevated: oklch(98.5% 0.004 250);
+      --surface: oklch(100% 0 0 / 0.72);
+      --surface-solid: oklch(100% 0 0);
+      --surface-2: oklch(98% 0.005 250 / 0.88);
+      --fg: oklch(22% 0.02 250);
+      --muted: oklch(48% 0.018 250);
+      --muted-2: oklch(62% 0.014 250);
+      --border: oklch(88% 0.01 250);
+      --border-soft: oklch(92% 0.008 250);
+      --glass: oklch(100% 0 0 / 0.58);
+      --glass-border: oklch(100% 0 0 / 0.55);
+      --accent: oklch(52% 0.09 230);
+      --accent-soft: oklch(95% 0.02 230);
+      --success: oklch(54% 0.13 150);
+      --success-soft: oklch(95% 0.03 150);
+      --warn: oklch(70% 0.12 80);
+      --warn-soft: oklch(96% 0.035 90);
+      --danger: oklch(56% 0.17 25);
+      --danger-soft: oklch(96% 0.03 20);
+      --info: oklch(52% 0.08 240);
+      --info-soft: oklch(95% 0.02 240);
+      --shadow-xs: 0 1px 0 oklch(30% 0.02 250 / 0.04);
+      --shadow-sm: 0 1px 2px oklch(30% 0.02 250 / 0.05), 0 4px 12px oklch(30% 0.02 250 / 0.04);
+      --shadow-md: 0 2px 4px oklch(30% 0.02 250 / 0.05), 0 10px 28px oklch(30% 0.02 250 / 0.07);
+      --radius: 8px;
+      --radius-sm: 6px;
+      --radius-xs: 4px;
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Segoe UI", system-ui, sans-serif;
+      --font-mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+      --text-xs: 11px;
+      --text-sm: 12.5px;
+      --text-md: 13.5px;
+      --text-lg: 15px;
+      --text-xl: 18px;
+      --text-2xl: 22px;
+      --header-h: 52px;
+      --demo-h: 44px;
+      --ease: cubic-bezier(0.22, 0.9, 0.28, 1);
+      --dur: 160ms;
+      --focus-ring: 0 0 0 2px var(--surface-solid), 0 0 0 4px oklch(58% 0.1 230);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: var(--font);
+      color: var(--fg);
+      background:
+        radial-gradient(1100px 420px at 8% -8%, oklch(97.2% 0.01 220 / 0.55), transparent 58%),
+        linear-gradient(180deg, oklch(97.8% 0.004 250), var(--bg));
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      font-size: var(--text-md);
+      text-rendering: optimizeLegibility;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    :focus { outline: none; }
+    :focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+    .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); border: 0;
+    }
+    .skip-link {
+      position: absolute;
+      left: 12px;
+      top: -48px;
+      z-index: 200;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--fg);
+      color: white;
+      font-size: var(--text-sm);
+      font-weight: 650;
+      transition: top var(--dur) var(--ease);
+    }
+    .skip-link:focus {
+      top: 10px;
+      box-shadow: var(--focus-ring);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      .pill-running .pill-dot { animation: none; box-shadow: none; }
+      .icon-spin { animation: none; }
+      .skel { animation: none; }
+    }
+
+    /* ========== Shell ========== */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-4);
+      background: oklch(100% 0 0 / 0.62);
+      backdrop-filter: saturate(1.4) blur(18px);
+      -webkit-backdrop-filter: saturate(1.4) blur(18px);
+      border-bottom: 1px solid var(--border-soft);
+      box-shadow: var(--shadow-xs);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 0 0 auto;
+    }
+    .brand-mark {
+      width: 28px; height: 28px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(145deg, oklch(72% 0.06 230), oklch(48% 0.08 240));
+      display: grid; place-items: center;
+      color: white;
+      flex: 0 0 auto;
+    }
+    .brand-mark svg { width: 15px; height: 15px; }
+    .brand-text { min-width: 0; }
+    .brand-name {
+      font-size: var(--text-sm);
+      font-weight: 650;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+    .brand-sub {
+      font-size: 10.5px;
+      color: var(--muted);
+      line-height: 1.2;
+    }
+    .top-metrics {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .top-metrics::-webkit-scrollbar { display: none; }
+    .metric-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border-soft);
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      white-space: nowrap;
+      font-size: var(--text-xs);
+      color: var(--muted);
+      flex: 0 0 auto;
+    }
+    .metric-chip strong {
+      color: var(--fg);
+      font-weight: 600;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 11.5px;
+    }
+    .metric-chip .label { opacity: 0.9; }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+    .lang-switch {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      background: var(--surface-solid);
+    }
+    .lang-switch button {
+      border: 0; background: transparent;
+      padding: 5px 9px;
+      font-size: var(--text-xs);
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .lang-switch button.active {
+      background: oklch(96% 0.01 250);
+      color: var(--fg);
+    }
+
+    /* Status pills */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: var(--text-xs);
+      font-weight: 650;
+      border: 1px solid transparent;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .pill svg { width: 12px; height: 12px; flex: 0 0 auto; }
+    .pill-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: currentColor; flex: 0 0 auto;
+    }
+    .pill-running { background: var(--success-soft); color: oklch(34% 0.08 150); border-color: oklch(86% 0.05 150); }
+    .pill-running .pill-dot { animation: pulse 1.8s ease-out infinite; }
+    .pill-paused { background: var(--warn-soft); color: oklch(40% 0.08 70); border-color: oklch(88% 0.05 80); }
+    .pill-stale { background: oklch(95% 0.01 250); color: var(--muted); border-color: var(--border); }
+    .pill-ok { background: var(--success-soft); color: oklch(34% 0.08 150); border-color: oklch(86% 0.05 150); }
+    .pill-warn { background: var(--warn-soft); color: oklch(40% 0.08 70); border-color: oklch(88% 0.05 80); }
+    .pill-danger, .pill-blocked { background: var(--danger-soft); color: oklch(42% 0.12 20); border-color: oklch(88% 0.05 20); }
+    .pill-info { background: var(--info-soft); color: oklch(38% 0.06 240); border-color: oklch(88% 0.03 240); }
+    .pill-neutral { background: oklch(96% 0.006 250); color: var(--muted); border-color: var(--border); }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 oklch(54% 0.13 150 / 0.45); }
+      70% { box-shadow: 0 0 0 7px oklch(54% 0.13 150 / 0); }
+      100% { box-shadow: 0 0 0 0 oklch(54% 0.13 150 / 0); }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface-solid);
+      color: var(--fg);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
+      white-space: nowrap;
+    }
+    .btn svg { width: 14px; height: 14px; flex: 0 0 auto; }
+    .btn:hover:not(:disabled) { background: oklch(97.5% 0.005 250); }
+    .btn:active:not(:disabled) { transform: translateY(0.5px); }
+    .btn:focus-visible { box-shadow: var(--focus-ring); }
+    .btn:disabled { opacity: 0.42; cursor: not-allowed; }
+    .btn-primary {
+      background: oklch(32% 0.04 250);
+      border-color: oklch(32% 0.04 250);
+      color: white;
+    }
+    .btn-primary:hover:not(:disabled) { background: oklch(26% 0.04 250); }
+    .btn-success {
+      background: var(--success);
+      border-color: oklch(48% 0.12 150);
+      color: white;
+    }
+    .btn-success:hover:not(:disabled) { background: oklch(48% 0.13 150); }
+    .btn-danger {
+      background: var(--danger);
+      border-color: oklch(50% 0.16 25);
+      color: white;
+    }
+    .btn-danger:hover:not(:disabled) { background: oklch(50% 0.17 25); }
+    .btn-ghost {
+      background: transparent;
+      border-color: transparent;
+      color: var(--muted);
+    }
+    .btn-ghost:hover:not(:disabled) { background: oklch(96% 0.006 250); color: var(--fg); }
+    .btn-sm { height: 28px; padding: 0 9px; font-size: var(--text-xs); }
+    .btn-icon {
+      width: 32px; padding: 0;
+    }
+    .lang-switch button:focus-visible {
+      box-shadow: inset 0 0 0 2px oklch(58% 0.1 230);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Demo state switcher */
+    .demo-bar {
+      position: sticky;
+      top: var(--header-h);
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: var(--demo-h);
+      padding: 6px var(--space-4);
+      background: oklch(98% 0.008 95 / 0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid oklch(90% 0.02 90);
+    }
+    .demo-bar .demo-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--text-xs);
+      font-weight: 700;
+      color: oklch(42% 0.06 80);
+      white-space: nowrap;
+    }
+    .demo-bar .demo-label svg { width: 13px; height: 13px; }
+    .scenario-tabs {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      flex: 1;
+      min-width: 0;
+    }
+    .scenario-tabs button {
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--muted);
+      transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+    }
+    .scenario-tabs button:hover { background: oklch(100% 0 0 / 0.7); color: var(--fg); }
+    .scenario-tabs button.active,
+    .scenario-tabs button[aria-selected="true"] {
+      background: white;
+      border-color: var(--border);
+      color: var(--fg);
+      box-shadow: var(--shadow-xs);
+    }
+    .scenario-tabs button:focus-visible {
+      box-shadow: var(--focus-ring);
+    }
+    .demo-note {
+      font-size: 10.5px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* Layout */
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    /* Glass panel — flat, no nested cards inside */
+    .panel {
+      background: var(--glass);
+      backdrop-filter: saturate(1.2) blur(14px);
+      -webkit-backdrop-filter: saturate(1.2) blur(14px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      min-width: 0;
+    }
+    .panel--aux {
+      box-shadow: var(--shadow-xs);
+      background: oklch(100% 0 0 / 0.48);
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-soft);
+      background: oklch(100% 0 0 / 0.35);
+      min-height: 42px;
+    }
+    .panel-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .panel-title {
+      margin: 0;
+      font-size: var(--text-sm);
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
+    .panel-sub {
+      margin: 0;
+      font-size: var(--text-xs);
+      color: var(--muted);
+    }
+    .panel-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .panel-body { padding: 12px; }
+    .panel-body.tight { padding: 8px 12px; }
+    .panel-body.flush { padding: 0; }
+
+    /* Compact dual row: checks + safety */
+    .row-dual {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-3);
+    }
+    .compact-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 12px;
+    }
+    .check-item, .valve-item {
+      display: grid;
+      grid-template-columns: 3px 14px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      padding: 5px 6px 5px 0;
+      border-bottom: 1px solid oklch(94% 0.005 250);
+      border-radius: var(--radius-xs);
+    }
+    .check-item:last-child, .valve-item:last-child { border-bottom: 0; }
+    .check-item .rail, .valve-item .rail {
+      width: 3px;
+      align-self: stretch;
+      border-radius: 2px;
+      background: var(--border);
+      min-height: 18px;
+    }
+    .check-item.is-ok .rail, .valve-item.is-ok .rail { background: var(--success); }
+    .check-item.is-warn .rail, .valve-item.is-warn .rail { background: oklch(68% 0.12 80); }
+    .check-item.is-bad .rail, .valve-item.is-bad .rail { background: var(--danger); }
+    .check-item .name, .valve-item .name {
+      font-size: var(--text-sm);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .check-item .detail, .valve-item .detail {
+      font-size: 10.5px;
+      color: var(--muted);
+      grid-column: 3 / -1;
+      margin-top: -2px;
+      margin-bottom: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .icon-state {
+      width: 14px; height: 14px;
+      display: grid; place-items: center;
+    }
+    .icon-state svg { width: 13px; height: 13px; }
+    .icon-ok { color: var(--success); }
+    .icon-warn { color: oklch(62% 0.12 75); }
+    .icon-bad { color: var(--danger); }
+    .icon-muted { color: var(--muted-2); }
+    .icon-spin { color: var(--info); animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Finance KPI strip — visual center (primary weight) */
+    .finance {
+      position: relative;
+      box-shadow: var(--shadow-md);
+      border-color: oklch(86% 0.012 250);
+      background: oklch(100% 0 0 / 0.78);
+    }
+    .finance::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: linear-gradient(180deg, oklch(58% 0.09 230), oklch(54% 0.1 160));
+      border-radius: var(--radius) 0 0 var(--radius);
+      pointer-events: none;
+    }
+    .finance .panel-head {
+      background: oklch(100% 0 0 / 0.55);
+      padding-left: 14px;
+    }
+    .finance .panel-title {
+      font-size: var(--text-md);
+      font-weight: 700;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 0;
+    }
+    .kpi {
+      padding: 14px 14px 12px;
+      border-right: 1px solid var(--border-soft);
+      min-width: 0;
+    }
+    .kpi:hover {
+      background: oklch(99% 0.004 250 / 0.7);
+    }
+    .kpi:last-child { border-right: 0; }
+    .kpi-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 550;
+      margin-bottom: 6px;
+    }
+    .kpi-label .tag {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      text-transform: none;
+    }
+    .kpi-label .tag.verified {
+      background: var(--success-soft);
+      border-color: oklch(86% 0.05 150);
+      color: oklch(34% 0.08 150);
+    }
+    .kpi-label .tag.est {
+      background: var(--info-soft);
+      border-color: oklch(88% 0.03 240);
+      color: oklch(38% 0.06 240);
+    }
+    .kpi-value {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(15px, 1.35vw, 20px);
+      font-weight: 650;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .kpi-value.pos { color: var(--success); }
+    .kpi-value.neg { color: var(--danger); }
+    .kpi-value.neutral { color: var(--fg); }
+    .kpi-foot {
+      margin-top: 5px;
+      font-size: 10.5px;
+      color: var(--muted-2);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .recon-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 12px;
+      border-top: 1px solid var(--border-soft);
+      background: oklch(98.5% 0.004 250 / 0.7);
+      font-size: var(--text-xs);
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .recon-bar.is-stale {
+      background: var(--warn-soft);
+      color: oklch(40% 0.08 70);
+    }
+    .recon-bar.is-error {
+      background: var(--danger-soft);
+      color: oklch(42% 0.12 20);
+    }
+
+    /* Mid grid: positions + funnel */
+    .row-mid {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: var(--space-3);
+    }
+
+    /* Table */
+    .table-wrap {
+      overflow: auto;
+      max-height: 320px;
+    }
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+    table.data th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      text-align: left;
+      font-size: 10.5px;
+      font-weight: 650;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 8px 10px;
+      background: oklch(98.5% 0.004 250 / 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    table.data td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border-soft);
+      vertical-align: middle;
+      max-width: 220px;
+    }
+    table.data tr:last-child td { border-bottom: 0; }
+    table.data tr:hover td { background: oklch(98.5% 0.004 250 / 0.6); }
+    table.data .num, table.data td.num {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      white-space: nowrap;
+    }
+    table.data th.num { text-align: right; }
+    table.data .market {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 550;
+    }
+    .stage {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .stage-hold { background: var(--info-soft); color: oklch(38% 0.06 240); border-color: oklch(88% 0.03 240); }
+    .stage-recover { background: var(--warn-soft); color: oklch(40% 0.08 70); border-color: oklch(88% 0.05 80); }
+    .stage-exit { background: oklch(95% 0.01 250); color: var(--muted); border-color: var(--border); }
+    .stage-settle { background: var(--accent-soft); color: oklch(38% 0.06 230); border-color: oklch(88% 0.03 230); }
+    .next-action {
+      font-size: 11px;
+      color: var(--muted);
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Funnel */
+    .funnel {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .funnel-step {
+      display: grid;
+      grid-template-columns: 22px 1fr auto auto;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      min-width: 0;
+    }
+    .funnel-step.is-active {
+      background: var(--accent-soft);
+      border-color: oklch(88% 0.03 230);
+    }
+    .funnel-step.is-pass { background: oklch(98.5% 0.01 150 / 0.5); }
+    .funnel-step.is-fail {
+      background: oklch(98% 0.01 20 / 0.45);
+    }
+    .funnel-n {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 10px;
+      font-weight: 700;
+      background: oklch(96% 0.006 250);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .funnel-step.is-pass .funnel-n {
+      background: var(--success-soft);
+      color: oklch(34% 0.08 150);
+      border-color: oklch(86% 0.05 150);
+    }
+    .funnel-step.is-fail .funnel-n {
+      background: var(--danger-soft);
+      color: oklch(42% 0.12 20);
+      border-color: oklch(88% 0.05 20);
+    }
+    .funnel-step.is-active .funnel-n {
+      background: white;
+      color: var(--accent);
+      border-color: oklch(80% 0.05 230);
+    }
+    .funnel-name {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .funnel-name .en {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .funnel-name .zh {
+      font-size: 10.5px;
+      color: var(--muted);
+    }
+    .funnel-count {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: var(--text-sm);
+      font-weight: 650;
+      min-width: 28px;
+      text-align: right;
+    }
+    .funnel-delta {
+      font-size: 10.5px;
+      color: var(--muted);
+      min-width: 52px;
+      text-align: right;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+    .reject-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: oklch(98% 0.006 250);
+      border: 1px solid var(--border-soft);
+      font-size: var(--text-xs);
+    }
+    .reject-box h4 {
+      margin: 0 0 6px;
+      font-size: 11px;
+      font-weight: 650;
+      color: var(--muted);
+    }
+    .reject-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .reject-list li {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: baseline;
+    }
+    .reject-list .reason {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--fg);
+    }
+    .reject-list .count {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+    }
+
+    /* Decision flow — lower weight */
+    .decision {
+      opacity: 0.88;
+      box-shadow: var(--shadow-xs);
+      background: oklch(100% 0 0 / 0.45);
+    }
+    .decision .panel-head {
+      background: oklch(98% 0.004 250 / 0.45);
+      min-height: 38px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+    .decision .panel-title {
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      padding: 4px 0;
+    }
+    .flow-step {
+      flex: 1 1 0;
+      min-width: 110px;
+      padding: 8px 10px;
+      border-right: 1px solid var(--border-soft);
+      position: relative;
+    }
+    .flow-step:last-child { border-right: 0; }
+    .flow-step .kicker {
+      font-size: 10px;
+      color: var(--muted-2);
+      font-weight: 650;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    .flow-step .title {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .flow-step .desc {
+      font-size: 10.5px;
+      color: var(--muted);
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .flow-step.is-current {
+      background: oklch(97% 0.012 230 / 0.55);
+    }
+    .flow-step.is-done .kicker { color: var(--success); }
+    .flow-step.is-blocked .kicker { color: var(--danger); }
+
+    /* Runs table bottom */
+    .runs .table-wrap { max-height: 220px; }
+    .empty-state, .loading-state, .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: var(--text-sm);
+    }
+    .empty-state svg, .loading-state svg, .error-state svg {
+      width: 22px; height: 22px; opacity: 0.55;
+    }
+    .error-state { color: oklch(42% 0.12 20); }
+
+    /* Expandable hybrid details */
+    details.hybrid {
+      border-top: 1px solid var(--border-soft);
+    }
+    details.hybrid summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--muted);
+      user-select: none;
+      background: oklch(99% 0.002 250 / 0.5);
+      transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+    }
+    details.hybrid summary::-webkit-details-marker { display: none; }
+    details.hybrid summary:hover { color: var(--fg); background: oklch(97.5% 0.004 250); }
+    details.hybrid summary:focus-visible { box-shadow: inset var(--focus-ring); }
+    details.hybrid summary .chev {
+      width: 14px; height: 14px;
+      transition: transform var(--dur) var(--ease);
+      flex: 0 0 auto;
+      opacity: 0.7;
+    }
+    details.hybrid[open] summary { border-bottom: 1px solid var(--border-soft); color: var(--fg); }
+    details.hybrid[open] summary .chev { transform: rotate(180deg); }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--border-soft);
+    }
+    .detail-cell {
+      background: var(--surface-solid);
+      padding: 10px 12px;
+      min-width: 0;
+    }
+    .detail-cell .k {
+      font-size: 10.5px;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .detail-cell .v {
+      font-size: var(--text-sm);
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Spec / mapping section */
+    .spec-section {
+      margin-top: 4px;
+    }
+    .spec-section .panel-body {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .spec-block h3 {
+      margin: 0 0 8px;
+      font-size: var(--text-sm);
+      font-weight: 650;
+    }
+    .token-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+    }
+    .token-swatch {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 8px;
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      background: var(--surface-solid);
+      font-size: 11px;
+    }
+    .token-swatch .sw {
+      width: 28px; height: 28px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border);
+    }
+    .token-swatch code {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+      display: block;
+    }
+    .map-table th, .map-table td {
+      font-size: 11.5px !important;
+      text-transform: none !important;
+      letter-spacing: 0 !important;
+    }
+    .map-table th {
+      font-weight: 650 !important;
+      color: var(--muted) !important;
+    }
+    .map-table code {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      background: oklch(96% 0.006 250);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .btn-state-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+    }
+    .btn-state-card {
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      background: var(--surface-solid);
+      font-size: var(--text-xs);
+    }
+    .btn-state-card h4 {
+      margin: 0 0 6px;
+      font-size: var(--text-sm);
+    }
+    .btn-state-card ul {
+      margin: 0;
+      padding-left: 16px;
+      color: var(--muted);
+    }
+    .btn-state-card li { margin-bottom: 2px; }
+
+    /* Banner alerts */
+    .alert-strip {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      border: 1px solid;
+      font-size: var(--text-sm);
+      font-weight: 550;
+    }
+    .alert-strip.is-visible { display: flex; }
+    .alert-strip.warn {
+      background: var(--warn-soft);
+      border-color: oklch(88% 0.05 80);
+      color: oklch(40% 0.08 70);
+    }
+    .alert-strip.danger {
+      background: var(--danger-soft);
+      border-color: oklch(88% 0.05 20);
+      color: oklch(42% 0.12 20);
+    }
+    .alert-strip svg { width: 16px; height: 16px; flex: 0 0 auto; }
+    .alert-strip .grow { flex: 1; min-width: 0; }
+
+    /* Modal confirm */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: oklch(20% 0.02 250 / 0.4);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-backdrop.is-open,
+    .modal-backdrop.is-open[hidden] {
+      display: flex;
+    }
+    .modal-backdrop[hidden] { display: none !important; }
+    .modal-backdrop.is-open[hidden] { display: flex !important; }
+    body.modal-open { overflow: hidden; }
+    .modal {
+      width: min(400px, 100%);
+      background: oklch(100% 0 0 / 0.96);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 16px 48px oklch(20% 0.02 250 / 0.18);
+      padding: 18px 16px 16px;
+      animation: modal-in 180ms var(--ease);
+    }
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(6px) scale(0.98); }
+      to { opacity: 1; transform: none; }
+    }
+    .modal h3 {
+      margin: 0 0 6px;
+      font-size: var(--text-lg);
+    }
+    .modal p {
+      margin: 0 0 14px;
+      font-size: var(--text-sm);
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* Skeleton */
+    .skel {
+      height: 12px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, oklch(94% 0.006 250), oklch(97% 0.004 250), oklch(94% 0.006 250));
+      background-size: 200% 100%;
+      animation: shimmer 1.2s ease infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    /* Sticky stack: demo bar tracks actual topbar height via CSS var */
+    .chrome-sticky {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .kpi { border-right: 1px solid var(--border-soft); border-top: 0; }
+      .kpi:nth-child(3n) { border-right: 0; }
+      .kpi:nth-child(n+4) { border-top: 1px solid var(--border-soft); }
+      .row-mid { grid-template-columns: 1fr; }
+      .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .funnel-delta { display: none; }
+    }
+    @media (max-width: 900px) {
+      .row-dual { grid-template-columns: 1fr; }
+      .compact-list { grid-template-columns: 1fr; }
+      .brand-sub { display: none; }
+      .demo-note { display: none; }
+      .top-metrics .metric-chip:nth-child(n+5) { display: none; }
+      .demo-bar { top: 0; position: sticky; }
+      .topbar { position: sticky; top: 0; }
+    }
+    @media (max-width: 640px) {
+      .page { padding: 10px; gap: 10px; }
+      .topbar {
+        padding: 8px 10px;
+        gap: 8px;
+        height: auto;
+        min-height: var(--header-h);
+        flex-wrap: wrap;
+      }
+      .top-metrics { order: 3; width: 100%; padding-bottom: 2px; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .kpi { border-right: 1px solid var(--border-soft); border-top: 0 !important; padding: 12px 10px 10px; }
+      .kpi:nth-child(2n) { border-right: 0; }
+      .kpi:nth-child(3n) { border-right: 1px solid var(--border-soft); }
+      .kpi:nth-child(n+3) { border-top: 1px solid var(--border-soft) !important; }
+      .kpi-value { font-size: 16px; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .flow-step { min-width: 132px; }
+      .top-actions .btn span.hide-sm { display: none; }
+      .panel-head { flex-wrap: wrap; gap: 6px; }
+      .scenario-tabs { gap: 2px; }
+      .scenario-tabs button { padding: 4px 8px; }
+      .table-wrap { max-height: 260px; -webkit-overflow-scrolling: touch; }
+      .metric-chip { padding: 4px 8px; }
+      .finance::before { width: 2px; }
+    }
+
+    /* Error state inside panels (scenario=error) */
+    body[data-scenario="error"] .finance .kpi-value {
+      color: var(--muted);
+    }
+    body[data-scenario="paused"] #run-pill.pill-paused {
+      border-color: oklch(88% 0.05 80);
+    }
+    body[data-scenario="blocked"] #panel-safety,
+    body[data-scenario="error"] #panel-checks {
+      box-shadow: 0 0 0 1px oklch(88% 0.04 20 / 0.55);
+    }
+
+    /* Spec collapsed by default for cleaner demo */
+    #panel-spec details.spec-collapse > summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      font-size: var(--text-sm);
+      font-weight: 650;
+      background: oklch(100% 0 0 / 0.35);
+      border-bottom: 1px solid transparent;
+    }
+    #panel-spec details.spec-collapse > summary::-webkit-details-marker { display: none; }
+    #panel-spec details.spec-collapse[open] > summary {
+      border-bottom-color: var(--border-soft);
+    }
+    #panel-spec details.spec-collapse > summary:focus-visible {
+      box-shadow: inset var(--focus-ring);
+    }
+
+    /* Print-friendly tokens note */
+    .foot-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted-2);
+      padding: 8px 0 16px;
+    }
+
+    /* Module state overlays via body data-scenario */
+    body[data-scenario="loading"] .hide-on-loading { display: none !important; }
+    body[data-scenario="loading"] .show-on-loading { display: flex !important; }
+    .show-on-loading { display: none !important; }
+
+    body[data-scenario="empty"] .hide-on-empty { display: none !important; }
+    body[data-scenario="empty"] .show-on-empty { display: flex !important; }
+    .show-on-empty { display: none !important; }
+
+    body[data-scenario="loading"] .recon-bar,
+    body[data-scenario="empty"] .recon-bar,
+    body[data-scenario="loading"] details.hybrid,
+    body[data-scenario="empty"] details.hybrid {
+      display: none !important;
+    }
+
+    /* Status pill sizes in compact lists */
+    .check-item .pill,
+    .valve-item .pill {
+      font-size: 10px;
+      padding: 2px 6px;
+      font-weight: 700;
+    }
+
+    /* Table sticky header glass on scroll */
+    .table-wrap {
+      scrollbar-width: thin;
+      scrollbar-color: oklch(80% 0.01 250) transparent;
+    }
+
+    /* Result column soft wrap clamp for long reject text */
+    table.data td .truncate {
+      display: block;
+      max-width: min(280px, 36vw);
+    }
+  </style>
+</head>
+<body data-scenario="running" data-lang="zh">
+  <a class="skip-link" href="#main">跳到主内容</a>
+  <!-- ========== Top status bar ========== -->
+  <header class="topbar" data-od-id="app-header" role="banner">
+    <div class="brand" data-od-id="brand">
+      <div class="brand-mark" aria-hidden="true"><i data-lucide="cloud-sun"></i></div>
+      <div class="brand-text">
+        <div class="brand-name">Weather Autopilot</div>
+        <div class="brand-sub" data-i18n="brand_sub">Polymarket 天气交易 · /app 主控台</div>
+      </div>
+    </div>
+
+    <div class="top-metrics" data-od-id="top-metrics" aria-label="关键状态">
+      <span class="metric-chip" id="chip-run" data-od-id="chip-run">
+        <span class="pill pill-running" id="run-pill" role="status" aria-live="polite"><span class="pill-dot" aria-hidden="true"></span><span id="run-text">Running</span></span>
+      </span>
+      <span class="metric-chip" data-od-id="chip-mode">
+        <span class="label" data-i18n="mode">模式</span>
+        <strong id="mode-text">Paper</strong>
+      </span>
+      <span class="metric-chip" data-od-id="chip-tick" title="本地时区 · 辅显 UTC">
+        <span class="label" data-i18n="last_tick">最后 Tick</span>
+        <strong id="tick-local" class="num">--:--:--</strong>
+        <span class="label mono" id="tick-utc" style="opacity:.7">UTC --:--</span>
+      </span>
+      <span class="metric-chip" data-od-id="chip-budget">
+        <span class="label" data-i18n="budget_used">今日已用</span>
+        <strong id="budget-text" class="num">$42.50 / $200</strong>
+      </span>
+      <span class="metric-chip" data-od-id="chip-exposure">
+        <span class="label" data-i18n="exposure">总敞口</span>
+        <strong id="exposure-chip" class="num">$186.40</strong>
+      </span>
+      <span class="metric-chip" data-od-id="chip-telegram">
+        <span class="label">Telegram</span>
+        <strong id="tg-text" style="font-family:var(--font)">已连接</strong>
+      </span>
+    </div>
+
+    <div class="top-actions" data-od-id="header-actions">
+      <div class="lang-switch" role="group" aria-label="语言">
+        <button type="button" class="active" data-lang-btn="zh" aria-pressed="true">中文</button>
+        <button type="button" data-lang-btn="en" aria-pressed="false">EN</button>
+      </div>
+      <button type="button" class="btn btn-sm btn-ghost" id="btn-tick" data-od-id="btn-tick" title="立即执行一轮" aria-label="立即执行一轮">
+        <i data-lucide="play" aria-hidden="true"></i><span class="hide-sm" data-i18n="btn_tick">立即执行</span>
+      </button>
+      <button type="button" class="btn btn-sm btn-danger" id="btn-toggle" data-od-id="btn-toggle" aria-label="暂停自动交易">
+        <i data-lucide="pause" aria-hidden="true"></i><span data-i18n="btn_pause">暂停</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========== Demo scenario switcher (设计交付：页内状态演示) ========== -->
+  <div class="demo-bar" data-od-id="demo-bar" role="region" aria-label="设计状态演示">
+    <span class="demo-label"><i data-lucide="sliders-horizontal"></i><span data-i18n="demo_label">状态演示</span></span>
+    <div class="scenario-tabs" id="scenario-tabs" role="tablist" aria-label="状态场景">
+      <button type="button" class="active" data-scenario="running" role="tab" aria-selected="true">Running</button>
+      <button type="button" data-scenario="paused" role="tab" aria-selected="false">Paused</button>
+      <button type="button" data-scenario="stale" role="tab" aria-selected="false">Stale</button>
+      <button type="button" data-scenario="warning" role="tab" aria-selected="false">Warning</button>
+      <button type="button" data-scenario="blocked" role="tab" aria-selected="false">Blocked</button>
+      <button type="button" data-scenario="error" role="tab" aria-selected="false">Error</button>
+      <button type="button" data-scenario="empty" role="tab" aria-selected="false">Empty</button>
+      <button type="button" data-scenario="loading" role="tab" aria-selected="false">Loading</button>
+    </div>
+    <span class="demo-note" data-i18n="demo_note">设计稿专用 · 不写入后端</span>
+  </div>
+
+  <main class="page" data-od-id="main" id="main" tabindex="-1">
+    <!-- Alerts -->
+    <div class="alert-strip warn" id="alert-warn" data-od-id="alert-warn" role="status">
+      <i data-lucide="triangle-alert"></i>
+      <span class="grow" id="alert-warn-text">对账延迟超过阈值阈值：持仓估值可能滞后，请优先核对 Recon 状态。</span>
+      <button type="button" class="btn btn-sm" id="btn-recon" data-od-id="btn-recon">刷新对账</button>
+    </div>
+    <div class="alert-strip danger" id="alert-danger" data-od-id="alert-danger" role="alert">
+      <i data-lucide="shield-alert"></i>
+      <span class="grow" id="alert-danger-text">熔断已触发：实盘下单已阻断。请检查 Kill Switch 与账户余额。</span>
+      <button type="button" class="btn btn-sm btn-danger" id="btn-review-block" data-od-id="btn-review-block">查看阻断</button>
+    </div>
+
+    <!-- Row 1: Startup checks + Safety valves -->
+    <section class="row-dual" data-od-id="row-checks-safety">
+      <article class="panel" data-od-id="panel-checks" id="panel-checks" aria-labelledby="checks-title">
+        <div class="panel-head">
+          <div class="panel-title-wrap">
+            <h2 class="panel-title" id="checks-title" data-i18n="checks_title">启动检查</h2>
+            <span class="pill pill-ok" id="checks-summary-pill">6/6 通过</span>
+          </div>
+          <div class="panel-meta">
+            <span class="panel-sub" id="checks-updated">2 分钟前</span>
+          </div>
+        </div>
+        <div class="panel-body tight hide-on-loading hide-on-empty" id="checks-body">
+          <div class="compact-list" id="checks-list" data-od-id="check-list" role="list" aria-label="启动检查项">
+            <!-- filled by JS -->
+          </div>
+        </div>
+        <div class="loading-state show-on-loading" role="status">
+          <i data-lucide="loader-circle" class="icon-spin" aria-hidden="true"></i>
+          <span>正在拉取启动检查…</span>
+        </div>
+        <div class="empty-state show-on-empty">
+          <i data-lucide="list-checks" aria-hidden="true"></i>
+          <span>尚未运行启动检查</span>
+        </div>
+        <details class="hybrid">
+          <summary>
+            <span data-i18n="expand_detail">展开详情</span>
+            <i data-lucide="chevron-down" class="chev" aria-hidden="true"></i>
+          </summary>
+          <div class="detail-grid">
+            <div class="detail-cell"><div class="k">Database</div><div class="v" id="d-db">connected · 12ms</div></div>
+            <div class="detail-cell"><div class="k">Weather API</div><div class="v" id="d-wx">ok · NOAA/Meteo</div></div>
+            <div class="detail-cell"><div class="k">Polymarket</div><div class="v" id="d-pm">ok · CLOB</div></div>
+            <div class="detail-cell"><div class="k">Compliance</div><div class="v" id="d-comp">soft-warn · geo</div></div>
+            <div class="detail-cell"><div class="k">Reconciliation</div><div class="v" id="d-recon">fresh · 47s</div></div>
+            <div class="detail-cell"><div class="k">Kill Switch</div><div class="v" id="d-kill">armed · idle</div></div>
+          </div>
+        </details>
+      </article>
+
+      <article class="panel" data-od-id="panel-safety" id="panel-safety" aria-labelledby="safety-title">
+        <div class="panel-head">
+          <div class="panel-title-wrap">
+            <h2 class="panel-title" id="safety-title" data-i18n="safety_title">安全阀门</h2>
+            <span class="pill pill-ok" id="safety-summary-pill">全部开启</span>
+          </div>
+          <div class="panel-meta">
+            <span class="panel-sub" data-i18n="safety_sub">硬风控 · 只读展示</span>
+          </div>
+        </div>
+        <div class="panel-body tight hide-on-loading hide-on-empty" id="safety-body">
+          <div class="compact-list" id="valves-list" data-od-id="valves-list" role="list" aria-label="安全阀门"></div>
+        </div>
+        <div class="loading-state show-on-loading" role="status">
+          <i data-lucide="loader-circle" class="icon-spin" aria-hidden="true"></i>
+          <span>加载安全阀门…</span>
+        </div>
+        <div class="empty-state show-on-empty">
+          <i data-lucide="shield" aria-hidden="true"></i>
+          <span>无阀门配置</span>
+        </div>
+      </article>
+    </section>
+
+    <!-- Core finance — visual center -->
+    <section class="panel finance" data-od-id="panel-finance" id="panel-finance" aria-labelledby="finance-title">
+      <div class="panel-head">
+        <div class="panel-title-wrap">
+          <h2 class="panel-title" id="finance-title" data-i18n="finance_title">成交盈亏与当前持仓估值</h2>
+          <span class="pill pill-info" id="finance-kind-pill">Verified + MtM</span>
+        </div>
+        <div class="panel-meta">
+          <span class="pill pill-ok" id="recon-pill">Recon Fresh</span>
+          <span class="panel-sub mono" id="finance-asof">as of —</span>
+        </div>
+      </div>
+      <div class="kpi-grid hide-on-loading hide-on-empty" id="kpi-grid" data-od-id="kpi-grid">
+        <div class="kpi" data-od-id="kpi-realized">
+          <div class="kpi-label">
+            <span data-i18n="kpi_realized">已实现盈亏</span>
+            <span class="tag verified">Verified</span>
+          </div>
+          <div class="kpi-value pos" id="kpi-realized">+$128.40</div>
+          <div class="kpi-foot" data-i18n="kpi_realized_foot">已成交结算 · 非估算</div>
+        </div>
+        <div class="kpi" data-od-id="kpi-unrealized">
+          <div class="kpi-label">
+            <span data-i18n="kpi_unrealized">未实现盈亏</span>
+            <span class="tag est">Estimated</span>
+          </div>
+          <div class="kpi-value pos" id="kpi-unrealized">+$36.20</div>
+          <div class="kpi-foot" data-i18n="kpi_unrealized_foot">Mark-to-Market</div>
+        </div>
+        <div class="kpi" data-od-id="kpi-pos-value">
+          <div class="kpi-label">
+            <span data-i18n="kpi_pos_value">当前持仓价值</span>
+            <span class="tag est">MtM</span>
+          </div>
+          <div class="kpi-value neutral" id="kpi-pos-value">$186.40</div>
+          <div class="kpi-foot" id="kpi-pos-count">3 个持仓</div>
+        </div>
+        <div class="kpi" data-od-id="kpi-exposure">
+          <div class="kpi-label">
+            <span data-i18n="kpi_exposure">总敞口</span>
+          </div>
+          <div class="kpi-value neutral" id="kpi-exposure">$186.40</div>
+          <div class="kpi-foot" id="kpi-exposure-pct">占日限额 93%</div>
+        </div>
+        <div class="kpi" data-od-id="kpi-invested">
+          <div class="kpi-label">
+            <span data-i18n="kpi_invested">今日投入</span>
+            <span class="tag verified">Verified</span>
+          </div>
+          <div class="kpi-value neutral" id="kpi-invested">$42.50</div>
+          <div class="kpi-foot" id="kpi-invested-foot">限额 $200.00</div>
+        </div>
+        <div class="kpi" data-od-id="kpi-balance">
+          <div class="kpi-label">
+            <span data-i18n="kpi_balance">可用余额</span>
+          </div>
+          <div class="kpi-value neutral" id="kpi-balance">$1,240.00</div>
+          <div class="kpi-foot" data-i18n="kpi_balance_foot">钱包可提用</div>
+        </div>
+      </div>
+      <div class="loading-state show-on-loading" style="padding:36px">
+        <div style="width:min(480px,90%);display:flex;flex-direction:column;gap:10px">
+          <div class="skel" style="height:16px;width:40%"></div>
+          <div class="skel" style="height:28px"></div>
+          <div class="skel" style="height:12px;width:70%"></div>
+        </div>
+      </div>
+      <div class="empty-state show-on-empty">
+        <i data-lucide="wallet"></i>
+        <span>暂无财务快照 · 启动后自动填充</span>
+      </div>
+      <div class="recon-bar" id="recon-bar" data-od-id="recon-bar">
+        <span id="recon-bar-text">对账：Fresh · 与 CLOB 持仓一致 · 延迟 47s</span>
+        <span class="mono" id="recon-bar-meta">source: fill_ledger + positions_mtm</span>
+      </div>
+      <details class="hybrid">
+        <summary>
+          <span data-i18n="finance_expand">字段释义 · Verified vs Estimated</span>
+          <i data-lucide="chevron-down" class="chev" aria-hidden="true"></i>
+        </summary>
+        <div class="detail-grid">
+          <div class="detail-cell">
+            <div class="k">Verified Realized PnL</div>
+            <div class="v" style="white-space:normal;font-family:var(--font);font-size:12px;line-height:1.4">来自已成交结算流水，不可与 MtM 混用</div>
+          </div>
+          <div class="detail-cell">
+            <div class="k">Estimated / Mark-to-Market</div>
+            <div class="v" style="white-space:normal;font-family:var(--font);font-size:12px;line-height:1.4">按最新中间价估算，对账过期时标记 Stale</div>
+          </div>
+          <div class="detail-cell">
+            <div class="k">Reconciliation</div>
+            <div class="v" style="white-space:normal;font-family:var(--font);font-size:12px;line-height:1.4">Fresh / Stale 独立标签，不伪装成已验证盈亏</div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- Positions + Funnel -->
+    <section class="row-mid" data-od-id="row-positions-funnel">
+      <article class="panel" data-od-id="panel-positions" id="panel-positions">
+        <div class="panel-head">
+          <div class="panel-title-wrap">
+            <h2 class="panel-title" data-i18n="pos_title">持仓与退出策略</h2>
+            <span class="pill pill-neutral" id="pos-count-pill">3 open</span>
+          </div>
+          <div class="panel-meta">
+            <span class="panel-sub" data-i18n="pos_sub">阶梯对齐 · 下一步动作可见</span>
+          </div>
+        </div>
+        <div class="table-wrap hide-on-loading hide-on-empty" id="positions-wrap">
+          <table class="data" data-od-id="positions-table">
+            <thead>
+              <tr>
+                <th data-i18n="th_market">市场</th>
+                <th class="num" data-i18n="th_qty">数量</th>
+                <th class="num" data-i18n="th_avg">成本</th>
+                <th class="num" data-i18n="th_mark">现价</th>
+                <th class="num" data-i18n="th_breakeven">回本</th>
+                <th data-i18n="th_stage">阶段</th>
+                <th data-i18n="th_next">下一步</th>
+              </tr>
+            </thead>
+            <tbody id="positions-body"></tbody>
+          </table>
+        </div>
+        <div class="loading-state show-on-loading">
+          <i data-lucide="loader-circle" class="icon-spin"></i>
+          <span>加载持仓…</span>
+        </div>
+        <div class="empty-state show-on-empty">
+          <i data-lucide="inbox"></i>
+          <span data-i18n="pos_empty">当前无持仓</span>
+        </div>
+      </article>
+
+      <article class="panel" data-od-id="panel-funnel" id="panel-funnel">
+        <div class="panel-head">
+          <div class="panel-title-wrap">
+            <h2 class="panel-title" data-i18n="funnel_title">机会漏斗</h2>
+            <span class="pill pill-info" id="funnel-pill">本轮</span>
+          </div>
+          <div class="panel-meta">
+            <span class="panel-sub" id="funnel-tick-meta">tick #1,284</span>
+          </div>
+        </div>
+        <div class="panel-body hide-on-loading hide-on-empty" id="funnel-body">
+          <div class="funnel" id="funnel-steps" data-od-id="funnel-steps"></div>
+          <div class="reject-box" data-od-id="reject-box">
+            <h4 data-i18n="reject_title">主要拒绝原因</h4>
+            <ul class="reject-list" id="reject-list"></ul>
+          </div>
+        </div>
+        <div class="loading-state show-on-loading">
+          <i data-lucide="loader-circle" class="icon-spin"></i>
+          <span>统计漏斗…</span>
+        </div>
+        <div class="empty-state show-on-empty">
+          <i data-lucide="filter"></i>
+          <span>本轮尚无机会流入</span>
+        </div>
+      </article>
+    </section>
+
+    <!-- Decision flow — lower visual weight -->
+    <section class="panel decision panel--aux" data-od-id="panel-decision" id="panel-decision">
+      <div class="panel-head">
+        <div class="panel-title-wrap">
+          <h2 class="panel-title" data-i18n="decision_title">决策流</h2>
+          <span class="pill pill-neutral" data-i18n="decision_pill">处理状态</span>
+        </div>
+        <div class="panel-meta">
+          <span class="panel-sub" data-i18n="decision_sub">市场发现 → 天气分析 → 定价 → 风控 → 订单执行</span>
+        </div>
+      </div>
+      <div class="panel-body flush hide-on-loading hide-on-empty">
+        <div class="flow" id="decision-flow" data-od-id="decision-flow"></div>
+      </div>
+      <div class="loading-state show-on-loading"><i data-lucide="loader-circle" class="icon-spin"></i><span>…</span></div>
+      <div class="empty-state show-on-empty"><i data-lucide="git-branch"></i><span>无活动决策流</span></div>
+    </section>
+
+    <!-- Recent runs -->
+    <section class="panel runs" data-od-id="panel-runs" id="panel-runs">
+      <div class="panel-head">
+        <div class="panel-title-wrap">
+          <h2 class="panel-title" data-i18n="runs_title">最近运行记录</h2>
+          <span class="pill pill-neutral" id="runs-count-pill">12</span>
+        </div>
+        <div class="panel-meta">
+          <button type="button" class="btn btn-sm btn-ghost" id="btn-expand-runs" data-od-id="btn-expand-runs">
+            <i data-lucide="maximize-2"></i><span data-i18n="expand_runs">展开</span>
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost" id="btn-clear-runs" data-od-id="btn-clear-runs">
+            <i data-lucide="trash-2"></i><span data-i18n="clear_runs">清空</span>
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap hide-on-loading hide-on-empty" id="runs-wrap" style="max-height:220px">
+        <table class="data" data-od-id="runs-table">
+          <thead>
+            <tr>
+              <th data-i18n="th_time">时间</th>
+              <th data-i18n="th_market">市场</th>
+              <th data-i18n="th_phase">阶段</th>
+              <th data-i18n="th_action">动作</th>
+              <th class="num">Edge</th>
+              <th data-i18n="th_result">结果 / 拒绝原因</th>
+            </tr>
+          </thead>
+          <tbody id="runs-body"></tbody>
+        </table>
+      </div>
+      <div class="loading-state show-on-loading"><i data-lucide="loader-circle" class="icon-spin"></i><span>加载运行记录…</span></div>
+      <div class="empty-state show-on-empty"><i data-lucide="scroll-text"></i><span data-i18n="runs_empty">暂无运行记录</span></div>
+    </section>
+
+    <!-- Spec: tokens, mapping, buttons — collapsed for cleaner first view -->
+    <section class="panel spec-section panel--aux" data-od-id="panel-spec" id="panel-spec">
+      <details class="spec-collapse">
+        <summary>
+          <span class="panel-title-wrap" style="display:inline-flex;align-items:center;gap:8px">
+            <span class="panel-title" style="font-size:var(--text-sm);font-weight:650">实现规格 · Design Tokens · 字段映射</span>
+            <span class="pill pill-info">给工程 / Codex</span>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:var(--text-xs)">
+            <span>不改后端 · 点击展开</span>
+            <i data-lucide="chevron-down" class="chev" aria-hidden="true" style="width:14px;height:14px"></i>
+          </span>
+        </summary>
+      <div class="panel-body">
+        <div class="spec-block">
+          <h3>1. Design Tokens</h3>
+          <div class="token-grid">
+            <div class="token-swatch"><div class="sw" style="background:oklch(96.8% 0.006 250)"></div><div>--bg<code>oklch(96.8% 0.006 250)</code></div></div>
+            <div class="token-swatch"><div class="sw" style="background:oklch(100% 0 0 / 0.72);border:1px solid #ddd"></div><div>--surface / glass<code>blur 14–18px</code></div></div>
+            <div class="token-swatch"><div class="sw" style="background:oklch(22% 0.02 250)"></div><div>--fg<code>oklch(22% 0.02 250)</code></div></div>
+            <div class="token-swatch"><div class="sw" style="background:oklch(48% 0.018 250)"></div><div>--muted<code>oklch(48% 0.018 250)</code></div></div>
+            <div class="token-swatch"><div class="sw" style="background:oklch(88% 0.01 250)"></div><div>--border<code>oklch(88% 0.01 250)</code></div></div>
+            <div class="token-swatch"><div class="sw" style="background:oklch(52% 0.09 230)"></div><div>--accent<code>oklch(52% 0.09 230)</code></div></div>
+            <div class="token-swatch"><div class="sw" style="background:oklch(54% 0.13 150)"></div><div>--success 仅盈利/正常</div></div>
+            <div class="token-swatch"><div class="sw" style="background:oklch(70% 0.12 80)"></div><div>--warn 仅警告</div></div>
+            <div class="token-swatch"><div class="sw" style="background:oklch(56% 0.17 25)"></div><div>--danger 仅亏损/阻断</div></div>
+            <div class="token-swatch"><div class="sw" style="background:linear-gradient(90deg,#eee,#fff);border:1px solid #ddd"></div><div>--radius ≤ 8px<code>6 / 8</code></div></div>
+            <div class="token-swatch"><div class="sw" style="background:#111;color:#fff;display:grid;place-items:center;font:10px mono">1.0</div><div>--font-mono 数字<code>tabular-nums</code></div></div>
+            <div class="token-swatch"><div class="sw" style="background:#f5f5f7;display:grid;place-items:center;font:9px system-ui">Aa</div><div>--font 系统栈 + 中文</div></div>
+          </div>
+          <p class="panel-sub" style="margin-top:8px">间距：4 / 8 / 12 / 16 / 20 / 24。卡片禁止嵌套。图标：Lucide。毛玻璃：<code>backdrop-filter: blur(14–18px)</code> + 半透明 surface。</p>
+        </div>
+
+        <div class="spec-block">
+          <h3>2. 字段 → UI 组件映射</h3>
+          <div class="table-wrap" style="max-height:none">
+            <table class="data map-table">
+              <thead>
+                <tr>
+                  <th>现有字段 / 概念</th>
+                  <th>新 UI 组件</th>
+                  <th>位置 / 备注</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code>run_state</code> Running/Paused/Stale</td><td><code>#run-pill</code> 状态胶囊</td><td>顶栏 · 绿/黄/灰</td></tr>
+                <tr><td><code>mode</code> observe/paper/micro_live</td><td><code>#mode-text</code> metric-chip</td><td>顶栏 · 不进主视觉 Hero</td></tr>
+                <tr><td><code>last_tick_at</code></td><td><code>#tick-local</code> + <code>#tick-utc</code></td><td>本地时区主显 · UTC 辅显</td></tr>
+                <tr><td><code>daily_spent</code> / <code>daily_limit</code></td><td><code>#budget-text</code></td><td>顶栏 + KPI 今日投入</td></tr>
+                <tr><td><code>total_exposure</code></td><td><code>#exposure-chip</code> / <code>#kpi-exposure</code></td><td>顶栏镜像 + 财务中心</td></tr>
+                <tr><td><code>telegram_status</code></td><td><code>#tg-text</code></td><td>顶栏 · 连接/断开</td></tr>
+                <tr><td><code>btn start/pause</code></td><td><code>#btn-toggle</code></td><td>危险操作用红；暂停确认模态</td></tr>
+                <tr><td><code>btn tick once</code></td><td><code>#btn-tick</code></td><td>次要 ghost/secondary</td></tr>
+                <tr><td>启动检查项 (db/wx/pm/comp/recon/kill)</td><td><code>#checks-list</code> compact-list</td><td>第一行左 · 图标状态 + 可展开详情</td></tr>
+                <tr><td>安全阀门 / gates</td><td><code>#valves-list</code></td><td>第一行右 · 通过/警告/阻断</td></tr>
+                <tr><td><code>realized_pnl</code></td><td><code>#kpi-realized</code> + tag Verified</td><td>财务中心 · 禁止与估算混色</td></tr>
+                <tr><td><code>unrealized_pnl</code></td><td><code>#kpi-unrealized</code> + tag Estimated</td><td>MtM · Stale 时脚注变黄</td></tr>
+                <tr><td><code>position_value</code></td><td><code>#kpi-pos-value</code></td><td>MtM</td></tr>
+                <tr><td><code>available_balance</code></td><td><code>#kpi-balance</code></td><td>财务中心</td></tr>
+                <tr><td><code>reconciliation_status</code></td><td><code>#recon-pill</code> + <code>#recon-bar</code></td><td>Fresh / Stale / Error</td></tr>
+                <tr><td>持仓阶梯 / exit stage</td><td><code>#positions-body</code> 表</td><td>Hold / Recover / Exit Full / Settlement</td></tr>
+                <tr><td>机会漏斗 stages</td><td><code>#funnel-steps</code></td><td>EN 术语 + 中文括号解释</td></tr>
+                <tr><td>reject reasons</td><td><code>#reject-list</code></td><td>漏斗下方紧凑列表</td></tr>
+                <tr><td>决策管线状态</td><td><code>#decision-flow</code></td><td>降权横条 · 非核心</td></tr>
+                <tr><td>run history rows</td><td><code>#runs-body</code></td><td>底栏限高滚动表</td></tr>
+                <tr><td>高级页入口</td><td>不进入主页</td><td>Operator / Launchpad / Calibration 保留外链即可</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="spec-block">
+          <h3>3. 交互按钮与状态</h3>
+          <div class="btn-state-list">
+            <div class="btn-state-card">
+              <h4>#btn-toggle 启动 / 暂停</h4>
+              <ul>
+                <li><strong>Running</strong>：红底「暂停」+ Pause 图标</li>
+                <li><strong>Paused</strong>：绿底「启动」+ Play 图标</li>
+                <li><strong>Blocked</strong>：禁用或仅允许「启动检查」</li>
+                <li><strong>点击暂停</strong>：打开确认模态，文案说明将停止新订单</li>
+                <li><strong>Loading</strong>：disabled + 文案「处理中…」</li>
+              </ul>
+            </div>
+            <div class="btn-state-card">
+              <h4>#btn-tick 立即执行一轮</h4>
+              <ul>
+                <li>Paused / Blocked / Error：disabled</li>
+                <li>Running：可点；点击后 800ms loading</li>
+                <li>Stale：可点，但顶部 Warning 条提示对账</li>
+              </ul>
+            </div>
+            <div class="btn-state-card">
+              <h4>#btn-recon 刷新对账</h4>
+              <ul>
+                <li>仅 Stale / Warning / Error 场景高亮</li>
+                <li>成功后 recon-pill → Fresh</li>
+              </ul>
+            </div>
+            <div class="btn-state-card">
+              <h4>#btn-clear-runs 清空历史</h4>
+              <ul>
+                <li>ghost 次要操作</li>
+                <li>需确认（本原型用 confirm）</li>
+                <li>清空后 Empty 状态</li>
+              </ul>
+            </div>
+            <div class="btn-state-card">
+              <h4>语言切换 中文 / EN</h4>
+              <ul>
+                <li>只替换文案节点，不改栅格</li>
+                <li>数字 / Edge / 阶段英文 ID 保持</li>
+                <li>长市场标题一律 truncate</li>
+              </ul>
+            </div>
+            <div class="btn-state-card">
+              <h4>Hybrid 展开详情</h4>
+              <ul>
+                <li>默认折叠：一眼看状态</li>
+                <li><code>&lt;details&gt;</code> 展开字段级信息</li>
+                <li>不使用嵌套卡片</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="spec-block">
+          <h3>4. 模块状态矩阵（页内切换已覆盖）</h3>
+          <div class="table-wrap" style="max-height:none">
+            <table class="data map-table">
+              <thead>
+                <tr>
+                  <th>场景</th>
+                  <th>顶栏</th>
+                  <th>检查 / 阀门</th>
+                  <th>财务</th>
+                  <th>持仓 / 漏斗 / 记录</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Running</td><td>绿 Running · 可暂停</td><td>多数 ok</td><td>Verified+MtM · Fresh</td><td>正常数据</td></tr>
+                <tr><td>Paused</td><td>黄 Paused · 可启动</td><td>冻结时间戳</td><td>数据保留</td><td>无新写入</td></tr>
+                <tr><td>Stale</td><td>灰 Stale</td><td>Recon warn</td><td>recon-bar 黄 · MtM 脚注 Stale</td><td>可查看</td></tr>
+                <tr><td>Warning</td><td>Running + 黄条</td><td>1–2 warn</td><td>额度接近上限</td><td>拒绝原因增多</td></tr>
+                <tr><td>Blocked</td><td>红阻断条</td><td>Kill / 余额阻断</td><td>下单禁用语义</td><td>漏斗停在 Risk</td></tr>
+                <tr><td>Error</td><td>Error pill</td><td>bad 项</td><td>recon error</td><td>记录显示失败</td></tr>
+                <tr><td>Empty</td><td>Paused</td><td>empty state</td><td>empty</td><td>empty</td></tr>
+                <tr><td>Loading</td><td>—</td><td>skeleton / spinner</td><td>skeleton</td><td>spinner</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="spec-block">
+          <h3>5. HTML 结构（落地骨架）</h3>
+          <pre style="margin:0;padding:12px;background:oklch(98% 0.004 250);border:1px solid var(--border-soft);border-radius:6px;font:11.5px/1.45 var(--font-mono);overflow:auto;max-height:220px">header.topbar
+main.page
+  .alert-strip.warn | .alert-strip.danger
+  section.row-dual
+    article.panel#panel-checks
+    article.panel#panel-safety
+  section.panel.finance#panel-finance
+    .kpi-grid &gt; .kpi × 6
+    .recon-bar
+    details.hybrid
+  section.row-mid
+    article.panel#panel-positions &gt; table.data
+    article.panel#panel-funnel &gt; .funnel + .reject-box
+  section.panel.decision#panel-decision &gt; .flow
+  section.panel.runs#panel-runs &gt; table.data
+  section.panel#panel-spec  /* 设计交付，生产可剥除 */</pre>
+        </div>
+      </div>
+      </details>
+    </section>
+
+    <p class="foot-note">Weather Autopilot Console v4 · 专业监控控制台 · 毛玻璃层级 · 设计稿不含后端改动</p>
+  </main>
+
+  <!-- Confirm modal -->
+  <div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-body" hidden>
+    <div class="modal" role="document">
+      <h3 id="modal-title">确认暂停自动交易？</h3>
+      <p id="modal-body">暂停后系统将停止提交新订单；已有挂单与持仓退出策略仍按规则处理。可随时重新启动。</p>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="modal-cancel">取消</button>
+        <button type="button" class="btn btn-danger" id="modal-confirm">确认暂停</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ========== i18n ========== */
+    const I18N = {
+      zh: {
+        brand_sub: "Polymarket 天气交易 · /app 主控台",
+        mode: "模式",
+        last_tick: "最后 Tick",
+        budget_used: "今日已用",
+        exposure: "总敞口",
+        btn_tick: "立即执行",
+        btn_pause: "暂停",
+        btn_start: "启动",
+        demo_label: "状态演示",
+        demo_note: "设计稿专用 · 不写入后端",
+        checks_title: "启动检查",
+        safety_title: "安全阀门",
+        safety_sub: "硬风控 · 只读展示",
+        expand_detail: "展开详情",
+        finance_title: "成交盈亏与当前持仓估值",
+        kpi_realized: "已实现盈亏",
+        kpi_realized_foot: "已成交结算 · 非估算",
+        kpi_unrealized: "未实现盈亏",
+        kpi_unrealized_foot: "Mark-to-Market",
+        kpi_pos_value: "当前持仓价值",
+        kpi_exposure: "总敞口",
+        kpi_invested: "今日投入",
+        kpi_balance: "可用余额",
+        kpi_balance_foot: "钱包可提用",
+        finance_expand: "字段释义 · Verified vs Estimated",
+        pos_title: "持仓与退出策略",
+        pos_sub: "阶梯对齐 · 下一步动作可见",
+        pos_empty: "当前无持仓",
+        th_market: "市场",
+        th_qty: "数量",
+        th_avg: "成本",
+        th_mark: "现价",
+        th_breakeven: "回本",
+        th_stage: "阶段",
+        th_next: "下一步",
+        funnel_title: "机会漏斗",
+        reject_title: "主要拒绝原因",
+        decision_title: "决策流",
+        decision_pill: "处理状态",
+        decision_sub: "市场发现 → 天气分析 → 定价 → 风控 → 订单执行",
+        runs_title: "最近运行记录",
+        expand_runs: "展开",
+        collapse_runs: "收起",
+        clear_runs: "清空",
+        th_time: "时间",
+        th_phase: "阶段",
+        th_action: "动作",
+        th_result: "结果 / 拒绝原因",
+        runs_empty: "暂无运行记录",
+        tg_ok: "已连接",
+        tg_off: "断开",
+      },
+      en: {
+        brand_sub: "Polymarket weather · /app console",
+        mode: "Mode",
+        last_tick: "Last tick",
+        budget_used: "Spent today",
+        exposure: "Exposure",
+        btn_tick: "Run once",
+        btn_pause: "Pause",
+        btn_start: "Start",
+        demo_label: "State demo",
+        demo_note: "Design only · no backend write",
+        checks_title: "Startup checks",
+        safety_title: "Safety valves",
+        safety_sub: "Hard risk · read-only",
+        expand_detail: "Show details",
+        finance_title: "Realized PnL & position mark",
+        kpi_realized: "Realized PnL",
+        kpi_realized_foot: "Settled fills · not estimate",
+        kpi_unrealized: "Unrealized PnL",
+        kpi_unrealized_foot: "Mark-to-Market",
+        kpi_pos_value: "Position value",
+        kpi_exposure: "Total exposure",
+        kpi_invested: "Invested today",
+        kpi_balance: "Available",
+        kpi_balance_foot: "Withdrawable",
+        finance_expand: "Field glossary · Verified vs Estimated",
+        pos_title: "Positions & exit ladder",
+        pos_sub: "Aligned stages · next action visible",
+        pos_empty: "No open positions",
+        th_market: "Market",
+        th_qty: "Qty",
+        th_avg: "Cost",
+        th_mark: "Mark",
+        th_breakeven: "BE",
+        th_stage: "Stage",
+        th_next: "Next",
+        funnel_title: "Opportunity funnel",
+        reject_title: "Top reject reasons",
+        decision_title: "Decision flow",
+        decision_pill: "Pipeline",
+        decision_sub: "Discover → Weather → Price → Risk → Execute",
+        runs_title: "Recent runs",
+        expand_runs: "Expand",
+        collapse_runs: "Collapse",
+        clear_runs: "Clear",
+        th_time: "Time",
+        th_phase: "Phase",
+        th_action: "Action",
+        th_result: "Result / reject",
+        runs_empty: "No run history",
+        tg_ok: "Connected",
+        tg_off: "Offline",
+      }
+    };
+
+    const FUNNEL_LABELS = [
+      { en: "Discovered", zh: "发现" },
+      { en: "Forecastable", zh: "可预测" },
+      { en: "Priced", zh: "已定价" },
+      { en: "Edge Qualified", zh: "优势达标" },
+      { en: "Risk Approved", zh: "风控通过" },
+      { en: "Submitted", zh: "已提交" },
+      { en: "Filled", zh: "已成交" },
+    ];
+
+    const STAGE_CLASS = {
+      "Hold": "stage-hold",
+      "Recover Principal": "stage-recover",
+      "Exit Full": "stage-exit",
+      "Settlement Pending": "stage-settle",
+    };
+
+    /* ========== Scenario data ========== */
+    function basePositions() {
+      return [
+        {
+          market: "NYC High Temp ≥ 32°C · Jul 15",
+          qty: 120,
+          avg: 0.41,
+          mark: 0.48,
+          be: 0.41,
+          stage: "Hold",
+          next: "等待 edge ≥ 8¢",
+        },
+        {
+          market: "Chicago High Temp ≤ 28°C · Jul 15",
+          qty: 80,
+          avg: 0.55,
+          mark: 0.51,
+          be: 0.55,
+          stage: "Recover Principal",
+          next: "限价卖出回本",
+        },
+        {
+          market: "Miami High Temp ≥ 34°C · Jul 14",
+          qty: 40,
+          avg: 0.62,
+          mark: 0.71,
+          be: 0.62,
+          stage: "Settlement Pending",
+          next: "等待结算入账",
+        },
+      ];
+    }
+
+    function baseFunnel() {
+      return [
+        { n: 48, state: "pass" },
+        { n: 31, state: "pass" },
+        { n: 22, state: "pass" },
+        { n: 9, state: "pass" },
+        { n: 4, state: "active" },
+        { n: 2, state: "neutral" },
+        { n: 1, state: "neutral" },
+      ];
+    }
+
+    function baseRejects() {
+      return [
+        { reason: "Edge below threshold (< 6¢)", count: 11 },
+        { reason: "Daily budget remaining low", count: 4 },
+        { reason: "Market not forecastable (sparse stations)", count: 3 },
+        { reason: "Position concentration limit", count: 2 },
+      ];
+    }
+
+    function baseRuns() {
+      const mk = (t, m, phase, action, edge, result) => ({ t, m, phase, action, edge, result });
+      return [
+        mk("14:22:08", "NYC High ≥ 32°C", "Edge Qualified", "HOLD", "+8.2¢", "等待更好挂单价"),
+        mk("14:21:40", "Chicago ≤ 28°C", "Risk Approved", "SUBMIT", "+6.1¢", "限价单已提交"),
+        mk("14:21:12", "Miami ≥ 34°C", "Priced", "SKIP", "+3.4¢", "Edge below threshold"),
+        mk("14:20:55", "Dallas ≥ 36°C", "Forecastable", "SKIP", "—", "数据站稀疏"),
+        mk("14:20:31", "NYC High ≥ 32°C", "Filled", "FILL", "+7.0¢", "部分成交 40 @ 0.47"),
+        mk("14:19:58", "Seattle ≤ 22°C", "Risk Approved", "REJECT", "+9.1¢", "敞口上限"),
+        mk("14:19:20", "Boston ≥ 30°C", "Discovered", "SKIP", "—", "非目标城市"),
+        mk("14:18:44", "Chicago ≤ 28°C", "Submitted", "CANCEL", "+5.5¢", "价格漂移取消"),
+        mk("14:18:02", "Phoenix ≥ 40°C", "Edge Qualified", "SKIP", "+4.0¢", "流动性不足"),
+        mk("14:17:30", "Miami ≥ 34°C", "Settlement", "SETTLE", "—", "等待 oracle"),
+        mk("14:16:55", "NYC High ≥ 32°C", "Priced", "SKIP", "+2.1¢", "费用后无优势"),
+        mk("14:16:10", "System", "Tick", "OK", "—", "巡航完成 · 48 discovered"),
+      ];
+    }
+
+    function baseChecks(overrides = {}) {
+      const items = [
+        { id: "database", name: "Database", detail: "connected · 12ms", state: "ok" },
+        { id: "weather", name: "Weather API", detail: "NOAA / Open-Meteo", state: "ok" },
+        { id: "polymarket", name: "Polymarket CLOB", detail: "latency 180ms", state: "ok" },
+        { id: "compliance", name: "Compliance", detail: "geo soft-check", state: "ok" },
+        { id: "reconciliation", name: "Reconciliation", detail: "fresh · 47s", state: "ok" },
+        { id: "kill", name: "Kill Switch", detail: "armed · idle", state: "ok" },
+      ];
+      return items.map((it) => ({ ...it, ...(overrides[it.id] || {}) }));
+    }
+
+    function baseValves(overrides = {}) {
+      const items = [
+        { id: "live_enabled", name: "实盘许可", detail: "Paper only", state: "ok" },
+        { id: "budget", name: "日限额阀门", detail: "$42.5 / $200", state: "ok" },
+        { id: "max_pos", name: "单市场上限", detail: "≤ $80", state: "ok" },
+        { id: "edge_min", name: "最小 Edge", detail: "≥ 6¢", state: "ok" },
+        { id: "recon_gate", name: "对账闸", detail: "Fresh required", state: "ok" },
+        { id: "kill_gate", name: "熔断闸", detail: "idle", state: "ok" },
+      ];
+      return items.map((it) => ({ ...it, ...(overrides[it.id] || {}) }));
+    }
+
+    const SCENARIOS = {
+      running: {
+        run: "running",
+        mode: "Paper",
+        tg: "ok",
+        budget: "$42.50 / $200",
+        exposure: "$186.40",
+        checks: baseChecks(),
+        valves: baseValves(),
+        checksPill: { text: "6/6 通过", cls: "pill-ok" },
+        safetyPill: { text: "全部开启", cls: "pill-ok" },
+        finance: {
+          realized: { v: "+$128.40", cls: "pos" },
+          unrealized: { v: "+$36.20", cls: "pos" },
+          posValue: "$186.40",
+          posCount: "3 个持仓",
+          exposure: "$186.40",
+          exposurePct: "占日限额 93%",
+          invested: "$42.50",
+          investedFoot: "限额 $200.00",
+          balance: "$1,240.00",
+          reconPill: { text: "Recon Fresh", cls: "pill-ok" },
+          reconBar: { text: "对账：Fresh · 与 CLOB 持仓一致 · 延迟 47s", cls: "", meta: "source: fill_ledger + positions_mtm" },
+          kind: "Verified + MtM",
+        },
+        positions: basePositions(),
+        funnel: baseFunnel(),
+        rejects: baseRejects(),
+        decision: [
+          { k: "01", title: "市场发现", desc: "48 个候选已扫描", state: "done" },
+          { k: "02", title: "天气分析", desc: "站网完整 · 可预测 31", state: "done" },
+          { k: "03", title: "定价", desc: "Mid + fee 模型", state: "done" },
+          { k: "04", title: "风控", desc: "4 笔待批", state: "current" },
+          { k: "05", title: "订单执行", desc: "限价单通道空闲", state: "idle" },
+        ],
+        runs: baseRuns(),
+        alertWarn: false,
+        alertDanger: false,
+      },
+      paused: {
+        run: "paused",
+        mode: "Paper",
+        tg: "ok",
+        budget: "$42.50 / $200",
+        exposure: "$186.40",
+        checks: baseChecks(),
+        valves: baseValves(),
+        checksPill: { text: "已冻结", cls: "pill-warn" },
+        safetyPill: { text: "保持", cls: "pill-neutral" },
+        finance: {
+          realized: { v: "+$128.40", cls: "pos" },
+          unrealized: { v: "+$36.20", cls: "pos" },
+          posValue: "$186.40",
+          posCount: "3 个持仓",
+          exposure: "$186.40",
+          exposurePct: "占日限额 93%",
+          invested: "$42.50",
+          investedFoot: "限额 $200.00",
+          balance: "$1,240.00",
+          reconPill: { text: "Recon Fresh", cls: "pill-ok" },
+          reconBar: { text: "暂停中 · 财务快照保留 · 无新成交", cls: "", meta: "operator: paused" },
+          kind: "Snapshot",
+        },
+        positions: basePositions(),
+        funnel: baseFunnel().map((f, i) => ({ ...f, state: i < 4 ? "pass" : "neutral" })),
+        rejects: baseRejects(),
+        decision: [
+          { k: "01", title: "市场发现", desc: "已暂停输入", state: "idle" },
+          { k: "02", title: "天气分析", desc: "—", state: "idle" },
+          { k: "03", title: "定价", desc: "—", state: "idle" },
+          { k: "04", title: "风控", desc: "—", state: "idle" },
+          { k: "05", title: "订单执行", desc: "不接受新单", state: "blocked" },
+        ],
+        runs: baseRuns(),
+        alertWarn: false,
+        alertDanger: false,
+      },
+      stale: {
+        run: "stale",
+        mode: "Paper",
+        tg: "ok",
+        budget: "$42.50 / $200",
+        exposure: "$186.40*",
+        checks: baseChecks({
+          reconciliation: { detail: "stale · 12m", state: "warn" },
+        }),
+        valves: baseValves({
+          recon_gate: { detail: "Stale · 阻断新单可选", state: "warn" },
+        }),
+        checksPill: { text: "1 警告", cls: "pill-warn" },
+        safetyPill: { text: "对账闸警告", cls: "pill-warn" },
+        finance: {
+          realized: { v: "+$128.40", cls: "pos" },
+          unrealized: { v: "+$36.20*", cls: "pos" },
+          posValue: "$186.40*",
+          posCount: "3 个持仓 · 估值可能滞后",
+          exposure: "$186.40*",
+          exposurePct: "MtM Stale",
+          invested: "$42.50",
+          investedFoot: "限额 $200.00",
+          balance: "$1,240.00",
+          reconPill: { text: "Recon Stale", cls: "pill-warn" },
+          reconBar: { text: "对账：Stale · 超过 10 分钟未与 CLOB 对齐 · 勿把 MtM 当已验证", cls: "is-stale", meta: "last_ok: 12m ago" },
+          kind: "Verified + Stale MtM",
+        },
+        positions: basePositions(),
+        funnel: baseFunnel(),
+        rejects: [{ reason: "Reconciliation stale — new risk approvals held", count: 4 }, ...baseRejects().slice(0, 2)],
+        decision: [
+          { k: "01", title: "市场发现", desc: "正常", state: "done" },
+          { k: "02", title: "天气分析", desc: "正常", state: "done" },
+          { k: "03", title: "定价", desc: "报价可用", state: "done" },
+          { k: "04", title: "风控", desc: "等待对账恢复", state: "blocked" },
+          { k: "05", title: "订单执行", desc: "暂缓", state: "idle" },
+        ],
+        runs: baseRuns(),
+        alertWarn: true,
+        alertDanger: false,
+        alertWarnText: "对账延迟超过阈值：持仓估值可能滞后，请优先核对 Recon 状态。",
+      },
+      warning: {
+        run: "running",
+        mode: "Micro Live",
+        tg: "ok",
+        budget: "$188.00 / $200",
+        exposure: "$192.10",
+        checks: baseChecks({
+          compliance: { detail: "geo soft-warn", state: "warn" },
+          reconciliation: { detail: "fresh · 90s", state: "ok" },
+        }),
+        valves: baseValves({
+          budget: { detail: "$188 / $200 · 接近上限", state: "warn" },
+          live_enabled: { detail: "Micro live · 限额中", state: "warn" },
+        }),
+        checksPill: { text: "1 警告", cls: "pill-warn" },
+        safetyPill: { text: "额度警告", cls: "pill-warn" },
+        finance: {
+          realized: { v: "+$64.10", cls: "pos" },
+          unrealized: { v: "-$12.40", cls: "neg" },
+          posValue: "$192.10",
+          posCount: "4 个持仓",
+          exposure: "$192.10",
+          exposurePct: "占日限额 96%",
+          invested: "$188.00",
+          investedFoot: "剩余 $12.00",
+          balance: "$820.00",
+          reconPill: { text: "Recon Fresh", cls: "pill-ok" },
+          reconBar: { text: "对账：Fresh · 日限额即将用尽 · 新单将更严格", cls: "", meta: "budget_remaining: $12.00" },
+          kind: "Verified + MtM",
+        },
+        positions: [
+          ...basePositions(),
+          {
+            market: "Boston High ≥ 30°C · Jul 15",
+            qty: 25,
+            avg: 0.44,
+            mark: 0.39,
+            be: 0.44,
+            stage: "Recover Principal",
+            next: "减仓至回本",
+          },
+        ],
+        funnel: [
+          { n: 52, state: "pass" },
+          { n: 28, state: "pass" },
+          { n: 18, state: "pass" },
+          { n: 5, state: "pass" },
+          { n: 1, state: "active" },
+          { n: 0, state: "fail" },
+          { n: 0, state: "fail" },
+        ],
+        rejects: [
+          { reason: "Daily budget remaining low", count: 14 },
+          { reason: "Edge below threshold (< 6¢)", count: 9 },
+          { reason: "Micro-live size cap", count: 5 },
+        ],
+        decision: [
+          { k: "01", title: "市场发现", desc: "52 候选", state: "done" },
+          { k: "02", title: "天气分析", desc: "完成", state: "done" },
+          { k: "03", title: "定价", desc: "完成", state: "done" },
+          { k: "04", title: "风控", desc: "额度收紧", state: "current" },
+          { k: "05", title: "订单执行", desc: "等待", state: "idle" },
+        ],
+        runs: baseRuns(),
+        alertWarn: true,
+        alertDanger: false,
+        alertWarnText: "日限额已使用 94%。新订单将优先保证剩余额度与集中度限制。",
+      },
+      blocked: {
+        run: "paused",
+        mode: "Micro Live",
+        tg: "ok",
+        budget: "$200.00 / $200",
+        exposure: "$210.00",
+        checks: baseChecks({
+          kill: { detail: "TRIPPED", state: "bad" },
+          reconciliation: { detail: "mismatch", state: "bad" },
+        }),
+        valves: baseValves({
+          kill_gate: { detail: "熔断触发", state: "bad" },
+          budget: { detail: "已耗尽", state: "bad" },
+          recon_gate: { detail: "阻断", state: "bad" },
+          live_enabled: { detail: "实盘已关", state: "bad" },
+        }),
+        checksPill: { text: "2 阻断", cls: "pill-danger" },
+        safetyPill: { text: "熔断", cls: "pill-danger" },
+        finance: {
+          realized: { v: "-$22.80", cls: "neg" },
+          unrealized: { v: "-$18.00", cls: "neg" },
+          posValue: "$210.00",
+          posCount: "持仓未平 · 禁止加仓",
+          exposure: "$210.00",
+          exposurePct: "超限",
+          invested: "$200.00",
+          investedFoot: "限额已用尽",
+          balance: "$640.00",
+          reconPill: { text: "Recon Error", cls: "pill-danger" },
+          reconBar: { text: "熔断：Kill Switch 已触发 · 实盘下单阻断 · 请人工复核", cls: "is-error", meta: "gate: kill_switch + budget" },
+          kind: "Blocked",
+        },
+        positions: basePositions().map((p, i) =>
+          i === 1 ? { ...p, stage: "Exit Full", next: "市价/限价清仓" } : p
+        ),
+        funnel: [
+          { n: 40, state: "pass" },
+          { n: 20, state: "pass" },
+          { n: 12, state: "pass" },
+          { n: 6, state: "pass" },
+          { n: 0, state: "fail" },
+          { n: 0, state: "fail" },
+          { n: 0, state: "fail" },
+        ],
+        rejects: [
+          { reason: "Kill switch tripped", count: 6 },
+          { reason: "Daily budget exhausted", count: 6 },
+          { reason: "Reconciliation mismatch", count: 3 },
+        ],
+        decision: [
+          { k: "01", title: "市场发现", desc: "完成", state: "done" },
+          { k: "02", title: "天气分析", desc: "完成", state: "done" },
+          { k: "03", title: "定价", desc: "完成", state: "done" },
+          { k: "04", title: "风控", desc: "全部拒绝", state: "blocked" },
+          { k: "05", title: "订单执行", desc: "硬阻断", state: "blocked" },
+        ],
+        runs: baseRuns(),
+        alertWarn: false,
+        alertDanger: true,
+        alertDangerText: "熔断已触发：实盘下单已阻断。请检查 Kill Switch 与账户余额。",
+      },
+      error: {
+        run: "stale",
+        mode: "Paper",
+        tg: "off",
+        budget: "— / $200",
+        exposure: "—",
+        checks: baseChecks({
+          database: { detail: "timeout", state: "bad" },
+          polymarket: { detail: "5xx", state: "bad" },
+          weather: { detail: "degraded", state: "warn" },
+          reconciliation: { detail: "unavailable", state: "bad" },
+        }),
+        valves: baseValves({
+          recon_gate: { detail: "不可用", state: "bad" },
+        }),
+        checksPill: { text: "3 错误", cls: "pill-danger" },
+        safetyPill: { text: "降级", cls: "pill-warn" },
+        finance: {
+          realized: { v: "—", cls: "neutral" },
+          unrealized: { v: "—", cls: "neutral" },
+          posValue: "—",
+          posCount: "无法估值",
+          exposure: "—",
+          exposurePct: "数据源错误",
+          invested: "—",
+          investedFoot: "—",
+          balance: "—",
+          reconPill: { text: "Error", cls: "pill-danger" },
+          reconBar: { text: "错误：CLOB / DB 不可用 · 显示上次成功快照失败", cls: "is-error", meta: "http 503" },
+          kind: "Unavailable",
+        },
+        positions: [],
+        funnel: baseFunnel().map(() => ({ n: 0, state: "fail" })),
+        rejects: [{ reason: "Upstream API error", count: 1 }],
+        decision: [
+          { k: "01", title: "市场发现", desc: "失败", state: "blocked" },
+          { k: "02", title: "天气分析", desc: "降级", state: "blocked" },
+          { k: "03", title: "定价", desc: "—", state: "idle" },
+          { k: "04", title: "风控", desc: "—", state: "idle" },
+          { k: "05", title: "订单执行", desc: "—", state: "idle" },
+        ],
+        runs: [
+          { t: "14:22:08", m: "System", phase: "Tick", action: "ERROR", edge: "—", result: "CLOB 503 · retry scheduled" },
+          { t: "14:21:00", m: "System", phase: "Tick", action: "ERROR", edge: "—", result: "DB timeout" },
+        ],
+        alertWarn: false,
+        alertDanger: true,
+        alertDangerText: "上游依赖失败：Database / Polymarket 返回错误。已停止自动轮询中的下单路径。",
+      },
+      empty: {
+        run: "paused",
+        mode: "Observe",
+        tg: "ok",
+        budget: "$0.00 / $200",
+        exposure: "$0.00",
+        checks: [],
+        valves: [],
+        checksPill: { text: "—", cls: "pill-neutral" },
+        safetyPill: { text: "—", cls: "pill-neutral" },
+        finance: null,
+        positions: [],
+        funnel: [],
+        rejects: [],
+        decision: [],
+        runs: [],
+        alertWarn: false,
+        alertDanger: false,
+      },
+      loading: {
+        run: "running",
+        mode: "—",
+        tg: "ok",
+        budget: "…",
+        exposure: "…",
+        checks: [],
+        valves: [],
+        checksPill: { text: "…", cls: "pill-neutral" },
+        safetyPill: { text: "…", cls: "pill-neutral" },
+        finance: null,
+        positions: [],
+        funnel: [],
+        rejects: [],
+        decision: [],
+        runs: [],
+        alertWarn: false,
+        alertDanger: false,
+      },
+    };
+
+    /* ========== Render helpers ========== */
+    const $ = (sel) => document.querySelector(sel);
+    let lang = "zh";
+    let scenario = "running";
+    let runsExpanded = false;
+    let isRunning = true;
+
+    function iconState(state) {
+      if (state === "ok") return `<span class="icon-state icon-ok"><i data-lucide="check-circle-2"></i></span>`;
+      if (state === "warn") return `<span class="icon-state icon-warn"><i data-lucide="alert-triangle"></i></span>`;
+      if (state === "bad") return `<span class="icon-state icon-bad"><i data-lucide="x-circle"></i></span>`;
+      if (state === "loading") return `<span class="icon-state icon-spin"><i data-lucide="loader-circle"></i></span>`;
+      return `<span class="icon-state icon-muted"><i data-lucide="circle"></i></span>`;
+    }
+
+    function fmtMoney(n) {
+      return n;
+    }
+
+    function applyI18n() {
+      const dict = I18N[lang] || I18N.zh;
+      document.querySelectorAll("[data-i18n]").forEach((el) => {
+        const k = el.getAttribute("data-i18n");
+        if (dict[k] != null) el.textContent = dict[k];
+      });
+      document.querySelectorAll("[data-lang-btn]").forEach((b) => {
+        const on = b.getAttribute("data-lang-btn") === lang;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      updateToggleButton();
+      // tg text
+      const sc = SCENARIOS[scenario];
+      $("#tg-text").textContent = sc.tg === "ok" ? dict.tg_ok : dict.tg_off;
+    }
+
+    function updateToggleButton() {
+      const dict = I18N[lang] || I18N.zh;
+      const btn = $("#btn-toggle");
+      if (isRunning) {
+        btn.className = "btn btn-sm btn-danger";
+        btn.innerHTML = `<i data-lucide="pause" aria-hidden="true"></i><span>${dict.btn_pause}</span>`;
+        btn.setAttribute("aria-label", lang === "zh" ? "暂停自动交易" : "Pause autopilot");
+      } else {
+        btn.className = "btn btn-sm btn-success";
+        btn.innerHTML = `<i data-lucide="play" aria-hidden="true"></i><span>${dict.btn_start}</span>`;
+        btn.setAttribute("aria-label", lang === "zh" ? "启动自动交易" : "Start autopilot");
+      }
+      if (scenario === "loading") btn.disabled = true;
+      else btn.disabled = false;
+      if (window.lucide) lucide.createIcons({ nodes: [btn] });
+    }
+
+    let lastFocusEl = null;
+    function openModal() {
+      const modal = $("#modal");
+      lastFocusEl = document.activeElement;
+      modal.hidden = false;
+      modal.classList.add("is-open");
+      document.body.classList.add("modal-open");
+      requestAnimationFrame(() => $("#modal-confirm").focus());
+    }
+    function closeModal() {
+      const modal = $("#modal");
+      modal.classList.remove("is-open");
+      modal.hidden = true;
+      document.body.classList.remove("modal-open");
+      if (lastFocusEl && typeof lastFocusEl.focus === "function") lastFocusEl.focus();
+    }
+
+    function setRunPill(state) {
+      const pill = $("#run-pill");
+      const text = $("#run-text");
+      pill.className = "pill";
+      if (state === "running") {
+        pill.classList.add("pill-running");
+        text.textContent = "Running";
+        isRunning = true;
+      } else if (state === "paused") {
+        pill.classList.add("pill-paused");
+        text.textContent = "Paused";
+        isRunning = false;
+      } else if (state === "stale") {
+        pill.classList.add("pill-stale");
+        text.textContent = "Stale";
+        isRunning = true;
+      } else {
+        pill.classList.add("pill-danger");
+        text.textContent = "Error";
+        isRunning = false;
+      }
+      updateToggleButton();
+    }
+
+    function stateClass(state) {
+      if (state === "ok") return "is-ok";
+      if (state === "warn") return "is-warn";
+      if (state === "bad") return "is-bad";
+      return "";
+    }
+
+    function renderChecks(list) {
+      const el = $("#checks-list");
+      if (!list || !list.length) {
+        el.innerHTML = "";
+        return;
+      }
+      el.innerHTML = list
+        .map((it) => {
+          const pillCls = it.state === "ok" ? "pill-ok" : it.state === "warn" ? "pill-warn" : "pill-danger";
+          const pillTxt = it.state === "ok" ? "OK" : it.state === "warn" ? "WARN" : "BLOCK";
+          return `
+        <div class="check-item ${stateClass(it.state)}" data-od-id="check-${it.id}" role="listitem">
+          <span class="rail" aria-hidden="true"></span>
+          ${iconState(it.state)}
+          <span class="name" title="${it.name}">${it.name}</span>
+          <span class="pill ${pillCls}" style="font-size:10px;padding:2px 6px">${pillTxt}</span>
+          <span class="detail" title="${it.detail}">${it.detail}</span>
+        </div>`;
+        })
+        .join("");
+      if (window.lucide) lucide.createIcons({ nodes: [el] });
+    }
+
+    function renderValves(list) {
+      const el = $("#valves-list");
+      if (!list || !list.length) {
+        el.innerHTML = "";
+        return;
+      }
+      el.innerHTML = list
+        .map((it) => {
+          const pillCls = it.state === "ok" ? "pill-ok" : it.state === "warn" ? "pill-warn" : "pill-danger";
+          const pillTxt = it.state === "ok" ? "OPEN" : it.state === "warn" ? "WARN" : "SHUT";
+          return `
+        <div class="valve-item ${stateClass(it.state)}" data-od-id="valve-${it.id}" role="listitem">
+          <span class="rail" aria-hidden="true"></span>
+          ${iconState(it.state)}
+          <span class="name" title="${it.name}">${it.name}</span>
+          <span class="pill ${pillCls}" style="font-size:10px;padding:2px 6px">${pillTxt}</span>
+          <span class="detail" title="${it.detail}">${it.detail}</span>
+        </div>`;
+        })
+        .join("");
+      if (window.lucide) lucide.createIcons({ nodes: [el] });
+    }
+
+    function renderPositions(rows) {
+      const body = $("#positions-body");
+      const wrap = $("#positions-wrap");
+      const panel = $("#panel-positions");
+      let inlineEmpty = panel.querySelector(".empty-state.inline-empty");
+      if (!rows || !rows.length) {
+        body.innerHTML = "";
+        $("#pos-count-pill").textContent = "0 open";
+        if (scenario !== "empty" && scenario !== "loading") {
+          wrap.style.display = "none";
+          if (!inlineEmpty) {
+            inlineEmpty = document.createElement("div");
+            inlineEmpty.className = "empty-state inline-empty";
+            inlineEmpty.innerHTML = `<i data-lucide="inbox" aria-hidden="true"></i><span>${I18N[lang].pos_empty}</span>`;
+            panel.insertBefore(inlineEmpty, wrap.nextSibling);
+            if (window.lucide) lucide.createIcons({ nodes: [inlineEmpty] });
+          }
+          inlineEmpty.style.display = "flex";
+        } else if (inlineEmpty) {
+          inlineEmpty.style.display = "none";
+        }
+        return;
+      }
+      if (inlineEmpty) inlineEmpty.style.display = "none";
+      wrap.style.display = "";
+      body.innerHTML = rows
+        .map((r) => {
+          const sc = STAGE_CLASS[r.stage] || "stage-hold";
+          return `<tr>
+            <td><div class="market" title="${r.market}">${r.market}</div></td>
+            <td class="num">${r.qty}</td>
+            <td class="num">${r.avg.toFixed(2)}</td>
+            <td class="num">${r.mark.toFixed(2)}</td>
+            <td class="num">${r.be.toFixed(2)}</td>
+            <td><span class="stage ${sc}">${r.stage}</span></td>
+            <td><span class="next-action" title="${r.next}">${r.next}</span></td>
+          </tr>`;
+        })
+        .join("");
+      $("#pos-count-pill").textContent = `${rows.length} open`;
+    }
+
+    function renderFunnel(steps, rejects) {
+      const el = $("#funnel-steps");
+      if (!steps || !steps.length) {
+        el.innerHTML = "";
+        $("#reject-list").innerHTML = "";
+        return;
+      }
+      el.innerHTML = steps
+        .map((s, i) => {
+          const lab = FUNNEL_LABELS[i];
+          const prev = i === 0 ? null : steps[i - 1].n;
+          const delta = prev == null ? "" : `−${Math.max(0, prev - s.n)}`;
+          const st =
+            s.state === "pass"
+              ? "is-pass"
+              : s.state === "fail"
+              ? "is-fail"
+              : s.state === "active"
+              ? "is-active"
+              : "";
+          return `<div class="funnel-step ${st}">
+            <span class="funnel-n">${i + 1}</span>
+            <div class="funnel-name">
+              <span class="en">${lab.en}</span>
+              <span class="zh">（${lab.zh}）</span>
+            </div>
+            <span class="funnel-count">${s.n}</span>
+            <span class="funnel-delta">${delta}</span>
+          </div>`;
+        })
+        .join("");
+      $("#reject-list").innerHTML = (rejects || [])
+        .map(
+          (r) => `<li><span class="reason" title="${r.reason}">${r.reason}</span><span class="count">${r.count}</span></li>`
+        )
+        .join("");
+    }
+
+    function renderDecision(steps) {
+      const el = $("#decision-flow");
+      if (!steps || !steps.length) {
+        el.innerHTML = "";
+        return;
+      }
+      el.innerHTML = steps
+        .map((s) => {
+          const st =
+            s.state === "done"
+              ? "is-done"
+              : s.state === "current"
+              ? "is-current"
+              : s.state === "blocked"
+              ? "is-blocked"
+              : "";
+          return `<div class="flow-step ${st}">
+            <div class="kicker">${s.k}</div>
+            <div class="title">${s.title}</div>
+            <div class="desc">${s.desc}</div>
+          </div>`;
+        })
+        .join("");
+    }
+
+    function renderRuns(rows) {
+      const body = $("#runs-body");
+      if (!rows || !rows.length) {
+        body.innerHTML = "";
+        $("#runs-count-pill").textContent = "0";
+        return;
+      }
+      body.innerHTML = rows
+        .map(
+          (r) => `<tr>
+          <td class="num" style="text-align:left">${r.t}</td>
+          <td><div class="market" title="${r.m}">${r.m}</div></td>
+          <td>${r.phase}</td>
+          <td><span class="mono">${r.action}</span></td>
+          <td class="num">${r.edge}</td>
+          <td><div class="truncate" style="max-width:240px" title="${r.result}">${r.result}</div></td>
+        </tr>`
+        )
+        .join("");
+      $("#runs-count-pill").textContent = String(rows.length);
+    }
+
+    function renderFinance(f) {
+      if (!f) return;
+      const set = (id, text, cls) => {
+        const el = $(id);
+        el.textContent = text;
+        if (cls != null) el.className = "kpi-value " + cls;
+      };
+      set("#kpi-realized", f.realized.v, f.realized.cls);
+      set("#kpi-unrealized", f.unrealized.v, f.unrealized.cls);
+      set("#kpi-pos-value", f.posValue, "neutral");
+      $("#kpi-pos-count").textContent = f.posCount;
+      set("#kpi-exposure", f.exposure, "neutral");
+      $("#kpi-exposure-pct").textContent = f.exposurePct;
+      set("#kpi-invested", f.invested, "neutral");
+      $("#kpi-invested-foot").textContent = f.investedFoot;
+      set("#kpi-balance", f.balance, "neutral");
+
+      const rp = $("#recon-pill");
+      rp.textContent = f.reconPill.text;
+      rp.className = "pill " + f.reconPill.cls;
+
+      const bar = $("#recon-bar");
+      bar.className = "recon-bar " + (f.reconBar.cls || "");
+      $("#recon-bar-text").textContent = f.reconBar.text;
+      $("#recon-bar-meta").textContent = f.reconBar.meta;
+      $("#finance-kind-pill").textContent = f.kind;
+    }
+
+    function updateTicks() {
+      const now = new Date();
+      const local = now.toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", { hour12: false });
+      const utc = now.toLocaleTimeString("en-GB", { hour12: false, timeZone: "UTC" });
+      if (scenario !== "loading" && scenario !== "error") {
+        $("#tick-local").textContent = local;
+        $("#tick-utc").textContent = "UTC " + utc.slice(0, 5);
+        $("#finance-asof").textContent = "as of " + local;
+      }
+    }
+
+    function applyScenario(name) {
+      scenario = name;
+      document.body.dataset.scenario = name;
+      const sc = SCENARIOS[name];
+      if (!sc) return;
+
+      // tabs
+      document.querySelectorAll("#scenario-tabs button").forEach((b) => {
+        const on = b.dataset.scenario === name;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-selected", on ? "true" : "false");
+        b.tabIndex = on ? 0 : -1;
+      });
+
+      setRunPill(sc.run);
+      $("#mode-text").textContent = sc.mode;
+      $("#budget-text").textContent = sc.budget;
+      $("#exposure-chip").textContent = sc.exposure;
+      $("#tg-text").textContent = sc.tg === "ok" ? I18N[lang].tg_ok : I18N[lang].tg_off;
+
+      // pills
+      const cp = $("#checks-summary-pill");
+      cp.textContent = sc.checksPill.text;
+      cp.className = "pill " + sc.checksPill.cls;
+      const sp = $("#safety-summary-pill");
+      sp.textContent = sc.safetyPill.text;
+      sp.className = "pill " + sc.safetyPill.cls;
+
+      renderChecks(sc.checks);
+      renderValves(sc.valves);
+      if (sc.finance) renderFinance(sc.finance);
+      renderPositions(sc.positions);
+      renderFunnel(sc.funnel, sc.rejects);
+      renderDecision(sc.decision);
+      renderRuns(sc.runs);
+
+      // alerts
+      const aw = $("#alert-warn");
+      const ad = $("#alert-danger");
+      aw.classList.toggle("is-visible", !!sc.alertWarn);
+      ad.classList.toggle("is-visible", !!sc.alertDanger);
+      if (sc.alertWarnText) $("#alert-warn-text").textContent = sc.alertWarnText;
+      if (sc.alertDangerText) $("#alert-danger-text").textContent = sc.alertDangerText;
+
+      // tick button
+      const tick = $("#btn-tick");
+      tick.disabled = name === "paused" || name === "blocked" || name === "error" || name === "loading" || name === "empty";
+
+      // empty/loading handled by CSS body[data-scenario]
+      if (name === "empty" || name === "loading") {
+        $("#pos-count-pill").textContent = "0 open";
+        $("#runs-count-pill").textContent = "0";
+      }
+
+      updateTicks();
+      applyI18n();
+      if (window.lucide) lucide.createIcons();
+    }
+
+    /* ========== Events ========== */
+    document.querySelectorAll("#scenario-tabs button").forEach((b) => {
+      b.addEventListener("click", () => applyScenario(b.dataset.scenario));
+    });
+    // arrow-key roving tabindex for scenario tabs
+    $("#scenario-tabs").addEventListener("keydown", (e) => {
+      const tabs = Array.from($("#scenario-tabs").querySelectorAll('[role="tab"]'));
+      const i = tabs.indexOf(document.activeElement);
+      if (i < 0) return;
+      let next = -1;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (i + 1) % tabs.length;
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (i - 1 + tabs.length) % tabs.length;
+      if (e.key === "Home") next = 0;
+      if (e.key === "End") next = tabs.length - 1;
+      if (next >= 0) {
+        e.preventDefault();
+        tabs[next].focus();
+        applyScenario(tabs[next].dataset.scenario);
+      }
+    });
+
+    document.querySelectorAll("[data-lang-btn]").forEach((b) => {
+      b.addEventListener("click", () => {
+        lang = b.getAttribute("data-lang-btn");
+        document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+        applyI18n();
+        applyScenario(scenario);
+      });
+    });
+
+    $("#btn-toggle").addEventListener("click", () => {
+      if (scenario === "loading") return;
+      if (isRunning) {
+        $("#modal-title").textContent = lang === "zh" ? "确认暂停自动交易？" : "Pause autopilot?";
+        $("#modal-body").textContent =
+          lang === "zh"
+            ? "暂停后系统将停止提交新订单；已有挂单与持仓退出策略仍按规则处理。可随时重新启动。"
+            : "No new orders will be submitted. Open orders and exit logic continue. You can resume anytime.";
+        $("#modal-confirm").textContent = lang === "zh" ? "确认暂停" : "Confirm pause";
+        $("#modal-confirm").className = "btn btn-danger";
+        openModal();
+      } else {
+        // start — blocked remains blocked (demo)
+        if (scenario === "blocked") {
+          applyScenario("blocked");
+          return;
+        }
+        applyScenario("running");
+      }
+    });
+
+    $("#modal-cancel").addEventListener("click", closeModal);
+    $("#modal").addEventListener("click", (e) => {
+      if (e.target === $("#modal")) closeModal();
+    });
+    $("#modal-confirm").addEventListener("click", () => {
+      closeModal();
+      applyScenario("paused");
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && $("#modal").classList.contains("is-open")) {
+        e.preventDefault();
+        closeModal();
+        return;
+      }
+      // simple focus cycle inside modal
+      if (e.key === "Tab" && $("#modal").classList.contains("is-open")) {
+        const focusables = $("#modal").querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])");
+        const list = Array.from(focusables).filter((el) => !el.disabled && el.offsetParent !== null);
+        if (!list.length) return;
+        const first = list[0];
+        const last = list[list.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    });
+
+    $("#btn-tick").addEventListener("click", () => {
+      const btn = $("#btn-tick");
+      btn.disabled = true;
+      const prev = btn.innerHTML;
+      btn.innerHTML = `<i data-lucide="loader-circle" class="icon-spin"></i><span>…</span>`;
+      if (window.lucide) lucide.createIcons({ nodes: [btn] });
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = prev;
+        if (window.lucide) lucide.createIcons({ nodes: [btn] });
+        updateTicks();
+      }, 800);
+    });
+
+    $("#btn-expand-runs").addEventListener("click", () => {
+      runsExpanded = !runsExpanded;
+      $("#runs-wrap").style.maxHeight = runsExpanded ? "480px" : "220px";
+      const dict = I18N[lang];
+      $("#btn-expand-runs").querySelector("span").textContent = runsExpanded ? dict.collapse_runs : dict.expand_runs;
+    });
+
+    $("#btn-clear-runs").addEventListener("click", () => {
+      if (confirm(lang === "zh" ? "清空最近运行记录？（设计稿演示）" : "Clear run history? (demo)")) {
+        renderRuns([]);
+        $("#runs-wrap").classList.add("hide-on-empty");
+        // show empty visually inside panel without full scenario switch
+        $("#runs-body").innerHTML = "";
+        const wrap = $("#runs-wrap");
+        wrap.style.display = "none";
+        let empty = $("#panel-runs .empty-state.demo-clear");
+        if (!empty) {
+          empty = document.createElement("div");
+          empty.className = "empty-state demo-clear";
+          empty.style.display = "flex";
+          empty.innerHTML = `<i data-lucide="scroll-text"></i><span>${I18N[lang].runs_empty}</span>`;
+          $("#panel-runs").appendChild(empty);
+          if (window.lucide) lucide.createIcons({ nodes: [empty] });
+        }
+      }
+    });
+
+    $("#btn-recon").addEventListener("click", () => {
+      // demo: jump to running fresh
+      applyScenario("running");
+    });
+
+    // init
+    if (window.lucide) lucide.createIcons();
+    applyScenario("running");
+    setInterval(updateTicks, 1000);
+  </script>
+</body>
+</html>

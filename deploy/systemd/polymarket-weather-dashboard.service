@@ -1,0 +1,22 @@
+[Unit]
+Description=Polymarket Weather Arb local dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=polymarket-weather
+Group=polymarket-weather
+WorkingDirectory=/opt/polymarket-weather-arb
+EnvironmentFile=/etc/polymarket-weather-arb.env
+ExecStart=/opt/polymarket-weather-arb/.venv/bin/polymarket-weather dashboard --host 127.0.0.1 --port 8765
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/polymarket-weather-arb/data
+
+[Install]
+WantedBy=multi-user.target
